@@ -137,7 +137,7 @@ const VerificarEmailContent = ({ searchParams }: { searchParams: ReturnType<type
             </p>
           </div>
         ) : (
-          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <form className="mt-8 space-y-6" onSubmit={handleSubmit} method="post">
             <div className="space-y-4">
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-400 mb-1">

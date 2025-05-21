@@ -136,7 +136,7 @@ function RecuperarSenhaContent({ token }: { token: string }) {
         </div>
 
         {!success ? (
-          <form onSubmit={handleSubmit} className="mt-8 space-y-6">
+          <form onSubmit={handleSubmit} className="mt-8 space-y-6" method="post">
             <div className="space-y-4">
               <div>
                 <label htmlFor="password" className="block text-sm font-medium text-gray-400 mb-1">
