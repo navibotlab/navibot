@@ -1,27 +1,12 @@
 'use client'
 
-import { useState, Suspense, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { signIn } from 'next-auth/react'
-import { safeLog } from '@/lib/utils/security'
 
-// Componente principal com Suspense
+// Componente simplificado de login
 export default function Login() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-[#0F1115]">
-        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-        <span className="ml-2 text-white">Carregando...</span>
-      </div>
-    }>
-      <LoginForm />
-    </Suspense>
-  )
-}
-
-// Componente com o formulário e lógica
-function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -29,86 +14,77 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  // Verificar se estamos em produção ou desenvolvimento
-  useEffect(() => {
-    const host = window.location.host;
-    const isProd = host.includes('app.navibot.com.br');
-    console.log(`Ambiente: ${isProd ? 'Produção' : 'Desenvolvimento'}`);
-  }, []);
-
-  // Função de login com melhor tratamento de erros
-  const handleLogin = async () => {
+  // Função simplificada para login
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>) => {
+    if (e) {
+      e.preventDefault();
+    }
+    
     try {
-      // Validação básica
+      setIsLoading(true);
+      setError('');
+      setDebugInfo('Iniciando login... ');
+      
+      // Verificação básica
       if (!email || !password) {
         setError('Email e senha são obrigatórios');
+        setIsLoading(false);
         return;
       }
-
-      setError('');
-      setDebugInfo('');
-      setIsLoading(true);
-
-      console.log('1. Iniciando tentativa de login');
       
-      // Registrar informação de debug no cliente
-      setDebugInfo(prev => prev + '1. Tentando login... ');
-
+      // Log diretamente no DOM para diagnóstico
+      const debugElement = document.getElementById('debug-output');
+      if (debugElement) {
+        debugElement.innerText = 'Tentando autenticar...';
+      }
+      
+      // Tentar fazer login
       const result = await signIn('credentials', {
+        redirect: false,
         email,
-        password,
-        redirect: false
+        password
       });
-
-      console.log('2. Resposta do signIn:', result);
-      setDebugInfo(prev => prev + `2. Resposta: ${JSON.stringify(result)} `);
       
+      // Atualizar informações de debug
+      setDebugInfo(`Resposta: ${JSON.stringify(result)}`);
+      if (debugElement) {
+        debugElement.innerText += `\nResposta: ${JSON.stringify(result)}`;
+      }
+      
+      // Verificar resultado
       if (!result) {
-        console.error('Resultado do signIn é nulo ou indefinido');
-        setError('Erro de autenticação: resposta vazia do servidor');
-        setDebugInfo(prev => prev + '3. Erro: Resposta vazia ');
+        setError('Erro de autenticação: resposta vazia');
         setIsLoading(false);
         return;
       }
-
+      
       if (result.error) {
-        console.error('Erro ao fazer login:', result.error);
-        
-        if (result.error === 'CredentialsSignin') {
-          setError('Email ou senha incorretos');
-        } else {
-          setError(`Erro de autenticação: ${result.error}`);
-        }
-        
-        setDebugInfo(prev => prev + `3. Erro: ${result.error} `);
+        setError(result.error === 'CredentialsSignin' 
+          ? 'Email ou senha incorretos' 
+          : `Erro: ${result.error}`);
         setIsLoading(false);
         return;
       }
-
-      console.log('3. Login bem-sucedido, redirecionando...');
-      setDebugInfo(prev => prev + '3. Sucesso! Redirecionando... ');
       
-      // Adicionar um pequeno atraso antes do redirecionamento
+      // Sucesso - redirecionar
+      setDebugInfo('Login bem-sucedido! Redirecionando...');
+      if (debugElement) {
+        debugElement.innerText += '\nLogin bem-sucedido! Redirecionando...';
+      }
+      
       setTimeout(() => {
-        router.replace('/admin');
-      }, 500);
+        router.push('/admin');
+      }, 1000);
       
-    } catch (error) {
-      // Capturar e registrar qualquer erro durante o processo
-      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-      console.error('4. Exceção durante autenticação:', error);
-      setError(`Ocorreu um erro ao fazer login: ${errorMessage}`);
-      setDebugInfo(prev => prev + `4. Exceção: ${errorMessage} `);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro desconhecido';
+      setError(`Falha no login: ${message}`);
+      setDebugInfo(`Exceção: ${message}`);
       setIsLoading(false);
-    }
-  };
-
-  // Manipulador para o evento onKeyDown para detectar Enter
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault(); // Prevenir qualquer comportamento padrão
-      if (email && password) {
-        handleLogin();
+      
+      const debugElement = document.getElementById('debug-output');
+      if (debugElement) {
+        debugElement.innerText += `\nExceção: ${message}`;
       }
     }
   };
@@ -125,7 +101,8 @@ function LoginForm() {
           </p>
         </div>
 
-        <div className="mt-8 space-y-6">
+        {/* Usando uma abordagem direta com um formulário tradicional */}
+        <form onSubmit={handleSubmit} className="mt-8 space-y-6">
           <div className="space-y-4">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-400 mb-1">
@@ -133,13 +110,14 @@ function LoginForm() {
               </label>
               <input
                 id="email"
+                name="email"
                 type="email"
+                autoComplete="email"
                 required
                 className="appearance-none relative block w-full px-3 py-2 border border-gray-700 rounded-md placeholder-gray-500 text-white bg-[#0F1115] focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
                 placeholder="seu@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                onKeyDown={handleKeyDown}
                 disabled={isLoading}
               />
             </div>
@@ -150,13 +128,14 @@ function LoginForm() {
               </label>
               <input
                 id="password"
+                name="password"
                 type="password"
+                autoComplete="current-password"
                 required
                 className="appearance-none relative block w-full px-3 py-2 border border-gray-700 rounded-md placeholder-gray-500 text-white bg-[#0F1115] focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
                 placeholder="Sua senha"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                onKeyDown={handleKeyDown}
                 disabled={isLoading}
               />
             </div>
@@ -174,10 +153,12 @@ function LoginForm() {
             </div>
           )}
 
+          {/* Área de debug oculta para diagnosticar problemas */}
+          <div id="debug-output" className="hidden text-xs p-2 bg-gray-900 text-green-400 rounded"></div>
+
           <div>
             <button
-              type="button" 
-              onClick={handleLogin}
+              type="submit"
               disabled={isLoading}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -194,15 +175,26 @@ function LoginForm() {
               )}
             </button>
           </div>
-        </div>
 
-        <div className="text-center mt-4">
-          <Link 
-            href="/esqueci-senha" 
-            className="text-sm text-blue-400 hover:text-blue-300"
+          <div className="text-center mt-4">
+            <Link 
+              href="/esqueci-senha" 
+              className="text-sm text-blue-400 hover:text-blue-300"
+            >
+              Esqueci minha senha
+            </Link>
+          </div>
+        </form>
+
+        {/* Botão alternativo para contornar possíveis problemas */}
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={handleSubmit}
+            className="text-xs text-center w-full text-gray-400 hover:text-gray-300"
           >
-            Esqueci minha senha
-          </Link>
+            Tentar Método Alternativo
+          </button>
         </div>
       </div>
     </div>
