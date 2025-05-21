@@ -203,8 +203,8 @@ export default function Login() {
           </div>
         </form>
 
-        {/* Botão alternativo para contornar possíveis problemas */}
-        <div className="pt-2">
+        {/* Botões alternativos e de diagnóstico */}
+        <div className="pt-2 space-y-2">
           <button
             type="button"
             onClick={handleSubmit}
@@ -212,6 +212,13 @@ export default function Login() {
           >
             Tentar Método Alternativo
           </button>
+          
+          <Link
+            href="/diagnostico-publico"
+            className="block text-xs text-center w-full text-yellow-400 hover:text-yellow-300 mt-2"
+          >
+            Diagnosticar Problemas de Login
+          </Link>
         </div>
       </div>
     </div>

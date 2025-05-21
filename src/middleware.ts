@@ -63,6 +63,8 @@ export async function middleware(request: NextRequest) {
         pathname === '/teste-dom' ||
         pathname === '/aceitar-convite' ||
         pathname === '/teste' ||
+        pathname === '/diagnostico-publico' ||
+        pathname.startsWith('/api/diagnostico-publico') ||
         pathname.startsWith('/api/dispara-ja/webhook/') ||
         pathname.startsWith('/webhook/whatsapp-cloud') ||
         pathname === '/api/version' ||
@@ -70,6 +72,15 @@ export async function middleware(request: NextRequest) {
         pathname.startsWith('/api/diagnostico')) {
       console.log(`✅ Rota pública ou estática: ${pathname}, permitindo acesso`);
       return NextResponse.next();
+    }
+
+    // Verificar se há credenciais na URL para redirecionamento
+    const url = request.nextUrl;
+    if (url.search && (url.search.includes('email=') || url.search.includes('password='))) {
+      console.log(`⚠️ Detectadas credenciais na URL, redirecionando: ${pathname}`);
+      // Criar nova URL sem os parâmetros sensíveis
+      const cleanUrl = new URL(url.pathname, request.url);
+      return NextResponse.redirect(cleanUrl);
     }
 
     // Para todas as outras rotas, verificar autenticação e workspace
@@ -138,9 +149,9 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     // Aplicar middleware em todas as rotas da API exceto /api/auth, /api/version e webhooks
-    '/(api(?!/auth|/dispara-ja/webhook|/version|/diagnostico).*)',
+    '/(api(?!/auth|/dispara-ja/webhook|/version|/diagnostico|/diagnostico-publico).*)',
     
     // Aplicar middleware em todas as outras rotas exceto estáticas, públicas e webhook
-    '/((?!api/auth|api/version|api/diagnostico|_next/static|_next/image|favicon.ico|api/dispara-ja/webhook|login|registro|criar-conta|verificar-email|recuperar-senha|esqueci-senha).*)'
+    '/((?!api/auth|api/version|api/diagnostico|api/diagnostico-publico|_next/static|_next/image|favicon.ico|api/dispara-ja/webhook|login|registro|criar-conta|verificar-email|recuperar-senha|esqueci-senha|diagnostico-publico).*)'
   ]
 } 
