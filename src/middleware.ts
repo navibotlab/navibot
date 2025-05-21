@@ -44,7 +44,7 @@ export async function middleware(request: NextRequest) {
     const pathname = request.nextUrl.pathname;
     
     // Log da rota atual para depuração
-    console.log(`Middleware processando rota: ${pathname}`);
+    console.log(`🔍 Middleware iniciando: ${pathname}`);
     
     // Pular middleware para rotas públicas e estáticas
     if (pathname.startsWith('/api/auth') || 
@@ -66,8 +66,9 @@ export async function middleware(request: NextRequest) {
         pathname.startsWith('/api/dispara-ja/webhook/') ||
         pathname.startsWith('/webhook/whatsapp-cloud') ||
         pathname === '/api/version' ||
-        pathname.startsWith('/api/version')) {
-      console.log(`Rota pública ou estática: ${pathname}, permitindo acesso`);
+        pathname.startsWith('/api/version') ||
+        pathname.startsWith('/api/diagnostico')) {
+      console.log(`✅ Rota pública ou estática: ${pathname}, permitindo acesso`);
       return NextResponse.next();
     }
 
@@ -80,7 +81,7 @@ export async function middleware(request: NextRequest) {
     secureLog('Verificando autenticação para:', { rota: pathname });
     
     if (!token) {
-      secureLog('Token não encontrado, redirecionando para login');
+      console.log(`🚫 Token não encontrado, redirecionando: ${pathname}`);
       // Se for uma rota da API, retorna erro 401
       if (pathname.startsWith('/api/')) {
         return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
@@ -89,6 +90,7 @@ export async function middleware(request: NextRequest) {
       const loginUrl = new URL('/login', request.url);
       return NextResponse.redirect(loginUrl);
     } else {
+      console.log(`✅ Usuário autenticado: ${pathname}`);
       secureLog('Usuário autenticado', { 
         sub: token.sub,
         email: token.email,
@@ -119,6 +121,7 @@ export async function middleware(request: NextRequest) {
       workspaceId: token.workspaceId 
     });
 
+    console.log(`➡️ Middleware concluído: ${pathname}`);
     // Retornar a requisição modificada
     return NextResponse.next({
       request: {
@@ -135,9 +138,9 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     // Aplicar middleware em todas as rotas da API exceto /api/auth, /api/version e webhooks
-    '/(api(?!/auth|/dispara-ja/webhook|/version).*)',
+    '/(api(?!/auth|/dispara-ja/webhook|/version|/diagnostico).*)',
     
     // Aplicar middleware em todas as outras rotas exceto estáticas, públicas e webhook
-    '/((?!api/auth|api/version|_next/static|_next/image|favicon.ico|api/dispara-ja/webhook|login|registro|criar-conta|verificar-email|recuperar-senha|esqueci-senha).*)'
+    '/((?!api/auth|api/version|api/diagnostico|_next/static|_next/image|favicon.ico|api/dispara-ja/webhook|login|registro|criar-conta|verificar-email|recuperar-senha|esqueci-senha).*)'
   ]
 } 
