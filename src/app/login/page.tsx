@@ -35,6 +35,16 @@ export default function Login() {
       const envInfo = `Ambiente: ${environment}`;
       setDebugInfo(`Iniciando login... ${envInfo}`);
       
+      // Verificar se há parâmetros na URL - se houver, limpar
+      if (window.location.search) {
+        const cleanUrl = window.location.origin + window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+        // Mostrar aviso de segurança
+        setError('Dados sensíveis foram removidos da URL por motivos de segurança');
+        setIsLoading(false);
+        return;
+      }
+      
       // Verificação básica
       if (!email || !password) {
         setError('Email e senha são obrigatórios');
@@ -54,7 +64,7 @@ export default function Login() {
         redirect: false,
         email,
         password,
-        callbackUrl: '/admin' // Define o redirecionamento após o login bem-sucedido
+        callbackUrl: window.location.origin + '/admin' // Use URL absoluta com origem
       });
       
       // Atualizar informações de debug
@@ -85,8 +95,8 @@ export default function Login() {
         debugElement.innerText += '\nLogin bem-sucedido! Redirecionando...';
       }
       
-      // Redirecionar diretamente usando router.push para evitar parâmetros na URL
-      router.push('/admin');
+      // Usar window.location.href diretamente para mais confiabilidade
+      window.location.href = window.location.origin + '/admin';
       
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro desconhecido';

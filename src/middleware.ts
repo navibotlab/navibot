@@ -46,6 +46,27 @@ export async function middleware(request: NextRequest) {
     // Log da rota atual para depuração
     console.log(`🔍 Middleware iniciando: ${pathname}`);
     
+    // PROTEÇÃO CONTRA CREDENCIAIS NA URL (NOVO) - Verificação em todas as rotas antes de qualquer outro processamento
+    const url = request.nextUrl;
+    
+    // Verificação mais rigorosa de credenciais na URL
+    if (url.searchParams.has('email') || url.searchParams.has('password')) {
+      console.log(`⚠️ ALERTA DE SEGURANÇA: Credenciais detectadas na URL: ${pathname}${url.search}`);
+      
+      // Redirecionar para a página de diagnóstico standalone que é independente de APIs
+      const diagnosticoUrl = new URL('/diagnostico-standalone', request.url);
+      return NextResponse.redirect(diagnosticoUrl);
+    }
+    
+    // Verificação específica para login com qualquer parâmetro de query
+    if (pathname === '/login' && url.search.length > 0) {
+      console.log(`⚠️ Parâmetros de URL detectados na página de login: ${url.search}`);
+      
+      // Redirecionar para a página de login limpa
+      const loginUrl = new URL('/login', request.url);
+      return NextResponse.redirect(loginUrl);
+    }
+    
     // Pular middleware para rotas públicas e estáticas
     if (pathname.startsWith('/api/auth') || 
         pathname.startsWith('/_next') ||
@@ -64,6 +85,9 @@ export async function middleware(request: NextRequest) {
         pathname === '/aceitar-convite' ||
         pathname === '/teste' ||
         pathname === '/diagnostico-publico' ||
+        pathname === '/diagnostico-standalone' || // Adiciona diagnostico-standalone como rota pública
+        pathname === '/version.json' ||  // Permitir acesso direto ao arquivo de versão estático
+        pathname === '/api/version/index.json' || // Permitir acesso ao arquivo JSON de versão
         pathname.startsWith('/api/diagnostico-publico') ||
         pathname.startsWith('/api/dispara-ja/webhook/') ||
         pathname.startsWith('/webhook/whatsapp-cloud') ||
@@ -72,15 +96,6 @@ export async function middleware(request: NextRequest) {
         pathname.startsWith('/api/diagnostico')) {
       console.log(`✅ Rota pública ou estática: ${pathname}, permitindo acesso`);
       return NextResponse.next();
-    }
-
-    // Verificar se há credenciais na URL para redirecionamento
-    const url = request.nextUrl;
-    if (url.search && (url.search.includes('email=') || url.search.includes('password='))) {
-      console.log(`⚠️ Detectadas credenciais na URL, redirecionando: ${pathname}`);
-      // Criar nova URL sem os parâmetros sensíveis
-      const cleanUrl = new URL(url.pathname, request.url);
-      return NextResponse.redirect(cleanUrl);
     }
 
     // Para todas as outras rotas, verificar autenticação e workspace
@@ -152,6 +167,9 @@ export const config = {
     '/(api(?!/auth|/dispara-ja/webhook|/version|/diagnostico|/diagnostico-publico).*)',
     
     // Aplicar middleware em todas as outras rotas exceto estáticas, públicas e webhook
-    '/((?!api/auth|api/version|api/diagnostico|api/diagnostico-publico|_next/static|_next/image|favicon.ico|api/dispara-ja/webhook|login|registro|criar-conta|verificar-email|recuperar-senha|esqueci-senha|diagnostico-publico).*)'
+    '/((?!api/auth|api/version|api/diagnostico|api/diagnostico-publico|_next/static|_next/image|favicon.ico|api/dispara-ja/webhook|login|registro|criar-conta|verificar-email|recuperar-senha|esqueci-senha|diagnostico-publico|diagnostico-standalone).*)',
+    
+    // Adicionar verificação para a rota de login - permite verificação de parâmetros na URL
+    '/login'
   ]
 } 

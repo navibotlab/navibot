@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnóstico de Emergência - NaviBot</title>
+    <style>
+        body {
+            background-color: #0F1115;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #1A1D24;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+        h1, h2, h3 {
+            color: #ffffff;
+        }
+        .alert {
+            background-color: rgba(220, 53, 69, 0.2);
+            border: 1px solid rgba(220, 53, 69, 0.5);
+            color: #ff6b6b;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        .success {
+            background-color: rgba(40, 167, 69, 0.2);
+            border: 1px solid rgba(40, 167, 69, 0.5);
+            color: #75b798;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        .code {
+            background-color: #282c34;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-family: monospace;
+            margin-bottom: 15px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button.danger {
+            background-color: #e74c3c;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        table, th, td {
+            border: 1px solid #333;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #282c34;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Diagnóstico de Emergência - NaviBot</h1>
+        
+        <div class="alert">
+            <strong>⚠️ AVISO:</strong> Esta página é para solução de problemas graves. Use apenas se estiver enfrentando problemas de acesso.
+        </div>
+        
+        <div id="status" class="code">Carregando informações do sistema...</div>
+        
+        <h2>Ações de Emergência</h2>
+        
+        <div>
+            <button onclick="limparCookies()">Limpar Todos os Cookies</button>
+            <button onclick="limparLocalStorage()">Limpar LocalStorage</button>
+            <button onclick="limparCache()">Tentar Limpar Cache</button>
+            <button onclick="acessarLogin()">Acessar Login Diretamente</button>
+            <button class="danger" onclick="limparTudo()">LIMPAR TUDO E REDIRECIONAR</button>
+        </div>
+        
+        <h2>Informações do Sistema</h2>
+        
+        <div id="sysinfo" class="code">Carregando...</div>
+        
+        <h2>Cookies Armazenados</h2>
+        
+        <div id="cookies" class="code">Carregando...</div>
+        
+        <h2>LocalStorage</h2>
+        
+        <div id="localStorage" class="code">Carregando...</div>
+        
+        <h2>Instruções</h2>
+        
+        <ol>
+            <li>Clique em <strong>Limpar Todos os Cookies</strong> para remover cookies que podem estar causando loops</li>
+            <li>Clique em <strong>Limpar LocalStorage</strong> para remover dados de armazenamento local</li>
+            <li>Clique em <strong>Acessar Login Diretamente</strong> para tentar acessar a página de login limpa</li>
+            <li>Se continuar tendo problemas, clique em <strong>LIMPAR TUDO E REDIRECIONAR</strong></li>
+        </ol>
+    </div>
+
+    <script>
+        // Função para mostrar informações do sistema
+        function mostrarInfoSistema() {
+            const sysinfo = document.getElementById('sysinfo');
+            const info = {
+                url: window.location.href,
+                host: window.location.host,
+                path: window.location.pathname,
+                userAgent: navigator.userAgent,
+                plataforma: navigator.platform,
+                dataHora: new Date().toISOString(),
+                referrer: document.referrer || 'Nenhum',
+                cookiesPermitidos: navigator.cookieEnabled ? 'Sim' : 'Não'
+            };
+            
+            sysinfo.innerHTML = JSON.stringify(info, null, 2);
+        }
+        
+        // Função para mostrar cookies
+        function mostrarCookies() {
+            const cookiesDiv = document.getElementById('cookies');
+            const allCookies = document.cookie.split(';').map(c => c.trim()).filter(c => c);
+            
+            if (allCookies.length === 0) {
+                cookiesDiv.innerHTML = 'Nenhum cookie encontrado';
+                return;
+            }
+            
+            const cookieList = allCookies.map(cookie => {
+                const [name, value] = cookie.split('=');
+                // Mascarar valores para segurança
+                const maskedValue = '*'.repeat(Math.min(value?.length || 0, 10)) + '...';
+                return `${name} = ${maskedValue}`;
+            });
+            
+            cookiesDiv.innerHTML = cookieList.join('\n');
+        }
+        
+        // Função para mostrar localStorage
+        function mostrarLocalStorage() {
+            const localStorageDiv = document.getElementById('localStorage');
+            const keys = Object.keys(localStorage);
+            
+            if (keys.length === 0) {
+                localStorageDiv.innerHTML = 'Nenhum item no localStorage';
+                return;
+            }
+            
+            const items = keys.map(key => {
+                // Mascarar valores para segurança
+                const value = localStorage.getItem(key);
+                const maskedValue = value ? '*'.repeat(Math.min(value.length, 10)) + '...' : '';
+                return `${key} = ${maskedValue}`;
+            });
+            
+            localStorageDiv.innerHTML = items.join('\n');
+        }
+        
+        // Limpar todos os cookies
+        function limparCookies() {
+            const status = document.getElementById('status');
+            status.innerHTML = 'Limpando cookies...';
+            
+            // Obter todos os cookies
+            const allCookies = document.cookie.split(';').map(c => c.trim()).filter(c => c);
+            
+            // Tentar remover cada cookie
+            allCookies.forEach(cookie => {
+                const cookieName = cookie.split('=')[0].trim();
+                if (cookieName) {
+                    // Tentar múltiplas combinações para garantir limpeza
+                    document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;`;
+                    document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=${window.location.hostname};`;
+                    document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=.${window.location.hostname};`;
+                    document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; secure;`;
+                }
+            });
+            
+            status.innerHTML = 'Cookies removidos. Atualizando...';
+            mostrarCookies();
+            setTimeout(() => {
+                status.innerHTML = 'Cookies removidos com sucesso!';
+                status.className = 'success';
+            }, 1000);
+        }
+        
+        // Limpar localStorage
+        function limparLocalStorage() {
+            const status = document.getElementById('status');
+            status.innerHTML = 'Limpando localStorage...';
+            
+            try {
+                localStorage.clear();
+                status.innerHTML = 'LocalStorage limpo com sucesso!';
+                status.className = 'success';
+                mostrarLocalStorage();
+            } catch (e) {
+                status.innerHTML = `Erro ao limpar localStorage: ${e.message}`;
+                status.className = 'alert';
+            }
+        }
+        
+        // Tentar limpar cache do navegador
+        function limparCache() {
+            const status = document.getElementById('status');
+            status.innerHTML = 'Tentando limpar cache do navegador...';
+            
+            try {
+                // Tentar limpar caches via API Cache (funciona em navegadores modernos)
+                if ('caches' in window) {
+                    caches.keys().then(cacheNames => {
+                        cacheNames.forEach(cacheName => {
+                            caches.delete(cacheName);
+                        });
+                        status.innerHTML = 'Cache do navegador limpo com sucesso!';
+                        status.className = 'success';
+                    }).catch(err => {
+                        status.innerHTML = `Erro ao limpar cache: ${err.message}`;
+                    });
+                } else {
+                    status.innerHTML = 'API de Cache não disponível neste navegador. Recomendamos limpar o cache manualmente.';
+                }
+            } catch (e) {
+                status.innerHTML = `Erro ao tentar limpar cache: ${e.message}. Tente limpar manualmente.`;
+                status.className = 'alert';
+            }
+        }
+        
+        // Acessar login diretamente
+        function acessarLogin() {
+            window.location.href = '/login';
+        }
+        
+        // Limpar tudo e redirecionar
+        function limparTudo() {
+            const status = document.getElementById('status');
+            status.innerHTML = 'Limpando todos os dados e redirecionando...';
+            
+            // Limpar cookies
+            const allCookies = document.cookie.split(';').map(c => c.trim()).filter(c => c);
+            allCookies.forEach(cookie => {
+                const cookieName = cookie.split('=')[0].trim();
+                if (cookieName) {
+                    document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;`;
+                    document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=${window.location.hostname};`;
+                    document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=.${window.location.hostname};`;
+                }
+            });
+            
+            // Limpar localStorage
+            try {
+                localStorage.clear();
+            } catch (e) {
+                console.error('Erro ao limpar localStorage:', e);
+            }
+            
+            // Limpar sessionStorage
+            try {
+                sessionStorage.clear();
+            } catch (e) {
+                console.error('Erro ao limpar sessionStorage:', e);
+            }
+            
+            // Tentar limpar cache
+            if ('caches' in window) {
+                caches.keys().then(cacheNames => {
+                    cacheNames.forEach(cacheName => {
+                        caches.delete(cacheName);
+                    });
+                }).catch(err => {
+                    console.error('Erro ao limpar cache:', err);
+                });
+            }
+            
+            // Redirecionar após 2 segundos
+            setTimeout(() => {
+                window.location.href = '/login';
+            }, 2000);
+        }
+        
+        // Inicializar
+        window.addEventListener('load', () => {
+            mostrarInfoSistema();
+            mostrarCookies();
+            mostrarLocalStorage();
+            
+            const status = document.getElementById('status');
+            status.innerHTML = 'Página de diagnóstico carregada com sucesso. Escolha uma das ações abaixo.';
+        });
+    </script>
+</body>
+</html> 

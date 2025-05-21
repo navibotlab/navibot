@@ -90,6 +90,14 @@ const nextConfig = {
         source: '/docs/:path*',
         destination: '/docs/:path*',
       },
+      {
+        source: '/version.json',
+        destination: '/api/version/index.json',
+      },
+      {
+        source: '/api/version',
+        destination: '/api/version/index.json',
+      }
     ];
   },
 
@@ -185,33 +193,36 @@ const nextConfig = {
     // Outras variáveis de ambiente
   },
   
-  // Impedir vazamento de credenciais na URL
+  // Implementação robusta de proteção contra vazamento de credenciais na URL
   async redirects() {
     return [
+      // Regra específica para qualquer página com email=
       {
-        // Redirecionar qualquer URL que contenha credenciais para página de login limpa
-        source: '/login:params*',
+        source: '/:path*',
+        has: [{ type: 'query', key: 'email' }],
+        destination: '/diagnostico-standalone',
+        permanent: false,
+      },
+      // Regra específica para qualquer página com password=
+      {
+        source: '/:path*',
+        has: [{ type: 'query', key: 'password' }],
+        destination: '/diagnostico-standalone',
+        permanent: false,
+      },
+      // Rota de fallback para login com query params (corrigindo o erro)
+      {
+        source: '/login',
         destination: '/login',
         permanent: false,
-        has: [
-          {
-            type: 'query',
-            key: 'email',
-          },
-        ],
+        has: [{ type: 'query', key: 'ref' }]
       },
+      // URLs com credenciais específicas
       {
-        // Redirecionar qualquer URL que contenha senha para página de login limpa
-        source: '/login:params*',
-        destination: '/login',
+        source: '/login:path*',
+        destination: '/diagnostico-standalone',
         permanent: false,
-        has: [
-          {
-            type: 'query',
-            key: 'password',
-          },
-        ],
-      },
+      }
     ]
   },
 };

@@ -140,91 +140,108 @@ export default function RootLayout({
           }}
         />
       
-        {/* Script para detectar atualizações da aplicação */}
+        {/* Desativar completamente verificações de versão em produção */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          // Desativar verificação de versão em produção para evitar problemas
+          (function() {
+            if (window.location.host.includes('app.navibot.com.br')) {
+              // Substituir a função por uma versão vazia em produção
+              window.safeVersionCheck = function() {
+                console.log('Verificação de versão desativada em ambiente de produção');
+              };
+            }
+          })();
+        `}} />
+        
+        {/* Script para detectar atualizações da aplicação - versão mais robusta */}
         <script dangerouslySetInnerHTML={{ __html: `
           // Função para carregar de forma segura, sem quebrar a página
           function safeVersionCheck() {
             try {
-              // Verificar atualizações a cada 5 minutos, mas apenas em páginas que não sejam a de login
-              // Isso evita bloqueios na página de login
+              // NOVA SOLUÇÃO: Desativar completamente em produção
+              if (window.location.host.includes('app.navibot.com.br')) {
+                console.log('Verificação de versão desativada em produção');
+                return;
+              }
+            
+              // Desativar em páginas com potenciais problemas
               if (window.location.pathname.includes('/login') || 
                   window.location.pathname.includes('/esqueci-senha') || 
                   window.location.pathname.includes('/criar-conta') ||
-                  window.location.pathname.includes('/recuperar-senha')) {
-                console.log('Verificação de versão desativada em páginas de autenticação');
+                  window.location.pathname.includes('/recuperar-senha') ||
+                  window.location.pathname.includes('/diagnostico') ||  // Desativa em qualquer página de diagnóstico
+                  window.location.pathname.includes('/diagnostico-publico') ||
+                  window.location.pathname.includes('/diagnostico-standalone')) {
+                console.log('Verificação de versão desativada nesta página');
                 return;
               }
 
+              // Verificar menos frequentemente (30 minutos) para reduzir carga
               setInterval(function checkForUpdates() {
-                // Função para processar os dados de versão
-                function handleVersionData(data) {
-                  // Armazenar a versão atual na primeira vez
-                  if (!localStorage.getItem('appVersion')) {
-                    localStorage.setItem('appVersion', data.version);
-                    return;
+                // Tentar carregar usando fetch com validação
+                fetch('/api/version/index.json?nocache=' + new Date().getTime(), {
+                  headers: { 'Accept': 'application/json' },
+                  cache: 'no-store'
+                })
+                .then(response => {
+                  // Verificar se a resposta é JSON válido antes de processar
+                  const contentType = response.headers.get('content-type');
+                  if (!response.ok || !contentType || !contentType.includes('application/json')) {
+                    throw new Error('Resposta inválida');
                   }
-                  
-                  // Comparar com a versão armazenada
-                  const currentVersion = localStorage.getItem('appVersion');
-                  if (data.version && data.version !== currentVersion) {
-                    console.log('Nova versão disponível:', data.version);
-                    localStorage.setItem('appVersion', data.version);
+                  return response.json();
+                })
+                .then(data => {
+                  // Função para processar os dados de versão
+                  function handleVersionData(data) {
+                    // Armazenar a versão atual na primeira vez
+                    if (!localStorage.getItem('appVersion')) {
+                      localStorage.setItem('appVersion', data.version);
+                      return;
+                    }
                     
-                    // Perguntar ao usuário se deseja atualizar
-                    if (confirm('Uma nova versão da aplicação está disponível. Deseja atualizar agora?')) {
-                      localStorage.setItem('forceReload', 'true');
-                      window.location.reload(true);
+                    // Comparar com a versão armazenada
+                    const currentVersion = localStorage.getItem('appVersion');
+                    if (data.version && data.version !== currentVersion) {
+                      console.log('Nova versão disponível:', data.version);
+                      localStorage.setItem('appVersion', data.version);
+                      
+                      // Perguntar ao usuário se deseja atualizar
+                      if (confirm('Uma nova versão da aplicação está disponível. Deseja atualizar agora?')) {
+                        localStorage.setItem('forceReload', 'true');
+                        window.location.reload(true);
+                      }
                     }
                   }
-                }
-              
-                // Tentar primeiro o arquivo público diretamente que é mais estável
-                fetch('/version.json?t=' + new Date().getTime())
-                  .then(response => {
-                    if (!response.ok) throw new Error('Arquivo não disponível');
-                    return response.json();
-                  })
-                  .then(data => {
+                  
+                  if (data && data.version) {
                     handleVersionData(data);
-                  })
-                  .catch(fileErr => {
-                    console.log('Erro ao verificar arquivo de versão:', fileErr.message || fileErr);
-                    
-                    // Fallback: tentar a API apenas se o arquivo falhar
-                    fetch('/api/version?t=' + new Date().getTime())
-                      .then(response => {
-                        // Verificar se a resposta é JSON válido
-                        if (!response.ok) {
-                          throw new Error('Resposta não-OK: ' + response.status);
-                        }
-                        
-                        const contentType = response.headers.get('content-type');
-                        if (!contentType || !contentType.includes('application/json')) {
-                          throw new Error('Tipo de conteúdo inválido: ' + contentType);
-                        }
-                        
-                        return response.json();
-                      })
-                      .then(data => {
-                        handleVersionData(data);
-                      })
-                      .catch(err => {
-                        console.log('Erro ao verificar atualizações via API:', err.message || err);
-                      });
-                  });
+                  }
+                })
+                .catch(err => {
+                  console.log('Erro de verificação ignorado:', err.message);
+                  // Não fazer nada em caso de erro - continue funcionando
+                });
                 
                 return checkForUpdates;
-              }(), 300000);
+              }(), 1800000); // 30 minutos
             } catch (e) {
-              console.log('Erro no sistema de verificação de versão:', e);
+              console.log('Erro no sistema de verificação de versão - sistema continuará funcionando');
             }
           }
           
-          // Inicializar verificação de versão após carregamento completo da página
-          if (document.readyState === 'complete') {
-            safeVersionCheck();
+          // SOLUÇÃO: Verificar se é uma página de diagnóstico antes de iniciar
+          if (window.location.pathname.includes('/diagnostico') ||
+              window.location.pathname.includes('/login?') ||
+              window.location.pathname.includes('?email=')) {
+            console.log('Página de diagnóstico/login com parâmetros detectada, pulando verificação de versão');
           } else {
-            window.addEventListener('load', safeVersionCheck);
+            // Inicializar verificação de versão após carregamento completo da página
+            if (document.readyState === 'complete') {
+              safeVersionCheck();
+            } else {
+              window.addEventListener('load', safeVersionCheck);
+            }
           }
           
           // Forçar limpeza de cache se necessário
