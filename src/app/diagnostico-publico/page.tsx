@@ -7,8 +7,13 @@ export default function DiagnosticoPublicoPage() {
   const [diagnostico, setDiagnostico] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [currentUrl, setCurrentUrl] = useState('');
+  const [actionCompleted, setActionCompleted] = useState(false);
 
   useEffect(() => {
+    // Capturar URL atual
+    setCurrentUrl(window.location.href);
+
     async function fetchDiagnostico() {
       try {
         const response = await fetch('/api/diagnostico-publico');
@@ -27,9 +32,9 @@ export default function DiagnosticoPublicoPage() {
     fetchDiagnostico();
   }, []);
 
-  // Função para limpar cookies
+  // Função para limpar cookies de forma agressiva
   const limparCookies = () => {
-    // Lista de cookies conhecidos do NextAuth
+    // Lista de cookies conhecidos
     const cookiesParaExcluir = [
       'next-auth.session-token',
       'next-auth.callback-url',
@@ -37,23 +42,53 @@ export default function DiagnosticoPublicoPage() {
       '__Secure-next-auth.session-token',
       '__Secure-next-auth.callback-url',
       '__Secure-next-auth.csrf-token',
-      'auth'
+      'auth',
+      // Inclua todos os possíveis cookies que possam estar causando o problema
     ];
     
-    // Excluir cada cookie
+    // Excluir todos os cookies para garantir uma limpeza completa
+    const allCookies = document.cookie.split(';');
+    
+    // Primeiro tenta remover os cookies específicos do NextAuth
     cookiesParaExcluir.forEach(cookie => {
       document.cookie = `${cookie}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;`;
+      // Tenta também com secure e domain
+      document.cookie = `${cookie}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; secure;`;
+      document.cookie = `${cookie}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=${window.location.hostname};`;
+      document.cookie = `${cookie}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=${window.location.hostname}; secure;`;
     });
     
-    // Atualizar a página
-    window.location.reload();
+    // Em seguida, tenta limpar TODOS os cookies encontrados
+    allCookies.forEach(cookie => {
+      const cookieName = cookie.split('=')[0].trim();
+      document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;`;
+      document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; secure;`;
+    });
+    
+    setActionCompleted(true);
+    // Atrasa a atualização para mostrar a mensagem de sucesso
+    setTimeout(() => {
+      window.location.href = '/login';
+    }, 2000);
+  };
+
+  // Acesso direto ao login (URL limpa)
+  const acessoDireto = () => {
+    window.location.href = '/login';
   };
 
   if (loading) return <div className="p-6">Carregando dados de diagnóstico...</div>;
   
   return (
     <div className="p-6 bg-gray-900 text-white min-h-screen">
-      <h1 className="text-2xl font-bold mb-4">Diagnóstico Público do Sistema</h1>
+      <h1 className="text-2xl font-bold mb-4">Diagnóstico do Sistema</h1>
+      
+      {actionCompleted && (
+        <div className="bg-green-900/20 border border-green-600 p-4 rounded-md mb-4">
+          <h2 className="text-lg font-semibold text-green-400">Ação completada!</h2>
+          <p className="text-green-300">Cookies foram limpos. Redirecionando para a página de login...</p>
+        </div>
+      )}
       
       {error && (
         <div className="bg-red-900/20 border border-red-600 p-4 rounded-md mb-4">
@@ -61,6 +96,12 @@ export default function DiagnosticoPublicoPage() {
           <p className="text-red-300">{error}</p>
         </div>
       )}
+      
+      <div className="bg-yellow-900/20 border border-yellow-600 p-4 rounded-md mb-4">
+        <h2 className="text-lg font-semibold text-yellow-400">⚠️ Alerta de Segurança</h2>
+        <p className="text-yellow-300 mb-2">Detectamos credenciais sendo expostas na URL. Isso representa um risco de segurança.</p>
+        <p className="text-white">Não use URLs que contenham seu email ou senha para acessar o sistema.</p>
+      </div>
       
       {diagnostico && (
         <div className="bg-gray-800 p-4 rounded-md mb-6">
@@ -71,51 +112,39 @@ export default function DiagnosticoPublicoPage() {
         </div>
       )}
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div className="bg-gray-800 p-4 rounded-md">
-          <h2 className="text-xl font-semibold mb-2">Configuração NextAuth</h2>
-          <p><strong>URL:</strong> {diagnostico?.nextauth_url}</p>
-          <p><strong>Ambiente:</strong> {diagnostico?.ambiente}</p>
-        </div>
-        
-        <div className="bg-gray-800 p-4 rounded-md">
-          <h2 className="text-xl font-semibold mb-2">Problemas Detectados</h2>
-          <ul className="list-disc pl-5">
-            <li className="text-yellow-400">
-              Loop de redirecionamento detectado
-            </li>
-            <li className="text-yellow-400">
-              Credenciais expostas na URL
-            </li>
-          </ul>
-        </div>
+      <div className="bg-gray-800 p-4 rounded-md mb-6">
+        <h2 className="text-xl font-semibold mb-2">URL Atual</h2>
+        <p className="text-red-300 overflow-auto break-all bg-gray-900 p-3 rounded-md">
+          {currentUrl}
+        </p>
       </div>
       
       <div className="bg-gray-800 p-4 rounded-md mb-6">
-        <h2 className="text-xl font-semibold mb-2">Ações de Diagnóstico</h2>
+        <h2 className="text-xl font-semibold mb-2">Ações Corretivas</h2>
         <div className="space-y-4">
           <button 
             onClick={limparCookies}
             className="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-md mr-4"
           >
-            Limpar Cookies de Autenticação
+            Limpar Todos os Cookies
           </button>
           
-          <Link 
-            href="/login" 
-            className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md"
+          <button 
+            onClick={acessoDireto}
+            className="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md"
           >
-            Voltar para Login
-          </Link>
+            Acessar Login Diretamente
+          </button>
         </div>
       </div>
       
       <div className="bg-gray-800/50 p-4 rounded-md">
-        <h2 className="text-xl font-semibold mb-2">Instruções</h2>
+        <h2 className="text-xl font-semibold mb-2">Instruções para Resolver</h2>
         <ol className="list-decimal pl-5 space-y-2">
-          <li>Clique em "Limpar Cookies de Autenticação" para remover os cookies de sessão</li>
-          <li>Volte para a página de login e tente novamente, sem copiar e colar a URL</li>
-          <li>Se o problema persistir, entre em contato com o suporte técnico</li>
+          <li>Clique em <strong>"Limpar Todos os Cookies"</strong> para remover os cookies que podem estar causando o loop</li>
+          <li>Em seguida, clique em <strong>"Acessar Login Diretamente"</strong> para ir à página de login limpa</li>
+          <li>Digite suas credenciais normalmente no formulário - <strong>NÃO use URLs que contenham credenciais</strong></li>
+          <li>Se continuar tendo problemas, entre em contato com o suporte técnico</li>
         </ol>
       </div>
     </div>
