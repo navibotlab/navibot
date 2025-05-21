@@ -1,0 +1,614 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AdminUser {
+  id        String   @id
+  email     String   @unique
+  name      String
+  password  String
+  role      String   @default("admin")
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+}
+
+model LeadToContactTags {
+  A            String
+  B            String
+  contact_tags contact_tags @relation(fields: [A], references: [id], onDelete: Cascade)
+
+  @@id([A, B], map: "_LeadToContactTags_AB_pkey")
+  @@index([B], map: "_LeadToContactTags_B_index")
+  @@map("_LeadToContactTags")
+}
+
+model access_tokens {
+  id        String   @id
+  userId    String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now())
+  users     users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model agents {
+  id                         String                       @id
+  name                       String
+  description                String?
+  system_prompt              String?
+  createdAt                  DateTime                     @default(now())
+  updatedAt                  DateTime                     @default(now())
+  agent_function             String?
+  agent_skills               String?
+  assistant_id               String?
+  company_description        String?
+  company_name               String?
+  company_sector             String?
+  company_website            String?
+  frequency_penalty          Float?
+  image_url                  String?
+  initial_message            String?
+  internal_name              String?
+  language                   String?
+  max_messages               Int?
+  max_tokens                 Int?
+  model                      String?
+  personality_objective      String?
+  presence_penalty           Float?
+  product_info               String?
+  response_format            String?
+  restrictions               String?
+  temperature                Float?
+  timezone                   String?
+  top_p                      Float?
+  vectorStoreId              String?
+  voice_tone                 String?
+  openai_api_key             String?
+  userId                     String
+  workspaceId                String
+  workspaces                 workspaces                   @relation(fields: [workspaceId], references: [id])
+  dispara_ja_connections     dispara_ja_connections[]
+  whatsapp_cloud_connections whatsapp_cloud_connections[]
+}
+
+model contact_fields {
+  id                 String               @id
+  name               String
+  type               String
+  required           Boolean              @default(false)
+  options            String[]             @default([])
+  placeholder        String?
+  default_value      String?
+  description        String?
+  order              Int
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime
+  workspaceId        String
+  workspaces         workspaces           @relation(fields: [workspaceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  lead_custom_fields lead_custom_fields[]
+
+  @@index([workspaceId])
+}
+
+model contact_tags {
+  id                String              @id
+  name              String
+  color             String
+  description       String?
+  workspaceId       String
+  created_at        DateTime            @default(now())
+  updated_at        DateTime
+  LeadToContactTags LeadToContactTags[]
+  leads             leads[]
+  workspaces        workspaces          @relation(fields: [workspaceId], references: [id])
+
+  @@index([workspaceId])
+}
+
+model conversations {
+  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  lead_id     String     @db.Uuid
+  thread_id   String?
+  created_at  DateTime   @default(now())
+  updated_at  DateTime
+  workspaceId String
+  channel     String?    @default("whatsapp-cloud")
+  leads       leads      @relation(fields: [lead_id], references: [id])
+  workspaces  workspaces @relation(fields: [workspaceId], references: [id])
+  messages    messages[]
+}
+
+model dispara_ja_connections {
+  id              String            @id
+  agentId         String
+  provider        String            @default("DISPARA_JA")
+  secret          String
+  sid             String
+  token           String?
+  phoneNumber     String
+  unique          String
+  webhookUrl      String
+  status          String            @default("inactive")
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime
+  workspaceId     String
+  agents          agents            @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  workspaces      workspaces        @relation(fields: [workspaceId], references: [id])
+  dispara_ja_logs dispara_ja_logs[]
+}
+
+model dispara_ja_logs {
+  id                     String                  @id
+  connectionId           String?
+  type                   String
+  message                String
+  timestamp              DateTime                @default(now())
+  workspaceId            String
+  dispara_ja_connections dispara_ja_connections? @relation(fields: [connectionId], references: [id])
+  workspaces             workspaces              @relation(fields: [workspaceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([workspaceId])
+}
+
+model files {
+  id          String     @id
+  fileId      String     @unique
+  filename    String
+  purpose     String
+  size        Int
+  type        String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime
+  workspaceId String
+  workspaces  workspaces @relation(fields: [workspaceId], references: [id])
+
+  @@index([workspaceId])
+}
+
+model lead_custom_fields {
+  id             String         @id
+  leadId         String         @db.Uuid
+  fieldId        String
+  value          String
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime
+  workspaceId    String
+  contact_fields contact_fields @relation(fields: [fieldId], references: [id])
+  leads          leads          @relation(fields: [leadId], references: [id])
+  workspaces     workspaces     @relation(fields: [workspaceId], references: [id])
+
+  @@unique([leadId, fieldId])
+  @@index([fieldId])
+  @@index([leadId])
+  @@index([workspaceId])
+}
+
+model leads {
+  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name               String?
+  phone              String
+  photo              String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime
+  workspaceId        String
+  closedAt           DateTime?
+  customFields       Json?
+  email              String?
+  expectedCloseDate  DateTime?
+  originGroupId      String?
+  ownerId            String?
+  priority           String?
+  probability        Int?                 @db.SmallInt
+  source             String?
+  stageId            String?
+  status             String?
+  value              Decimal?             @db.Decimal(10, 2)
+  originId           String?
+  conversations      conversations[]
+  lead_custom_fields lead_custom_fields[]
+  origin_groups      origin_groups?       @relation(fields: [originGroupId], references: [id])
+  origins            origins?             @relation(fields: [originId], references: [id])
+  stages             stages?              @relation(fields: [stageId], references: [id])
+  workspaces         workspaces           @relation(fields: [workspaceId], references: [id])
+  notes              notes[]
+  tasks              tasks[]
+  tags               contact_tags[]
+  business           business[]           // Relação inversa para negócios associados a este lead
+
+  @@unique([phone, workspaceId])
+  @@index([originGroupId])
+  @@index([originId])
+  @@index([stageId])
+  @@index([workspaceId])
+}
+
+model messages {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversation_id String        @db.Uuid
+  content         String
+  sender          String        @default("agent")
+  read            Boolean       @default(false)
+  created_at      DateTime      @default(now())
+  media_url       String?
+  updated_at      DateTime      @default(now())
+  type            String        @default("text")
+  is_manual       Boolean       @default(false)
+  external_id     String?       @unique
+  media_duration  Int?
+  media_type      String?
+  conversations   conversations @relation(fields: [conversation_id], references: [id])
+}
+
+model notes {
+  id          String     @id
+  content     String
+  leadId      String     @db.Uuid
+  createdBy   String
+  workspaceId String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime
+  users       users      @relation(fields: [createdBy], references: [id])
+  leads       leads      @relation(fields: [leadId], references: [id])
+  workspaces  workspaces @relation(fields: [workspaceId], references: [id])
+
+  @@index([createdBy])
+  @@index([leadId])
+  @@index([workspaceId])
+}
+
+model origin_groups {
+  id          String     @id
+  name        String
+  description String?
+  color       String?
+  icon        String?
+  order       Int
+  workspaceId String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime
+  leads       leads[]
+  workspaces  workspaces @relation(fields: [workspaceId], references: [id])
+  origins     origins[]
+
+  @@unique([name, workspaceId])
+  @@index([workspaceId])
+}
+
+model origins {
+  id             String        @id
+  name           String
+  description    String?
+  originGroupId  String
+  defaultStageId String?
+  active         Boolean       @default(true)
+  workspaceId    String
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime
+  leads          leads[]
+  stages         stages?       @relation(fields: [defaultStageId], references: [id])
+  origin_groups  origin_groups @relation(fields: [originGroupId], references: [id])
+  workspaces     workspaces    @relation(fields: [workspaceId], references: [id])
+  business       business[]    // Relação inversa para negócios desta origem
+
+  @@unique([name, workspaceId])
+  @@index([defaultStageId])
+  @@index([originGroupId])
+  @@index([workspaceId])
+}
+
+model password_reset_tokens {
+  id      String   @id @db.VarChar(25)
+  email   String
+  token   String   @unique
+  expires DateTime
+
+  @@index([email], map: "idx_passwordresettoken_email")
+}
+
+model permission_group_items {
+  id                String            @id
+  permissionGroupId String
+  permissionId      String
+  enabled           Boolean           @default(true)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime
+  permission_groups permission_groups @relation(fields: [permissionGroupId], references: [id], onDelete: Cascade)
+  permissions       permissions       @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([permissionGroupId, permissionId])
+  @@index([permissionGroupId])
+  @@index([permissionId])
+}
+
+model permission_groups {
+  id                     String                   @id
+  name                   String
+  description            String?
+  isDefault              Boolean                  @default(false)
+  isCustom               Boolean                  @default(false)
+  workspaceId            String
+  createdBy              String?
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime
+  permission_group_items permission_group_items[]
+  workspaces             workspaces               @relation(fields: [workspaceId], references: [id])
+  users                  users[]
+  usersWithPG            users[]                  @relation("user_permissionGroup")
+
+  @@unique([name, workspaceId])
+  @@index([workspaceId])
+}
+
+model permissions {
+  id                     String                   @id
+  key                    String                   @unique
+  name                   String
+  description            String?
+  category               String
+  subcategory            String?
+  defaultValue           Boolean                  @default(false)
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime
+  permission_group_items permission_group_items[]
+}
+
+model plan_features {
+  id           String   @id
+  planId       String
+  featureKey   String
+  featureValue String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime
+  plans        plans    @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, featureKey])
+}
+
+model plans {
+  id            String          @id
+  name          String
+  description   String?
+  price         Float
+  isActive      Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime
+  plan_features plan_features[]
+  users         users[]
+}
+
+model stages {
+  id          String     @id
+  name        String
+  description String?
+  color       String?
+  order       Int
+  workspaceId String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime
+  leads       leads[]
+  origins     origins[]
+  workspaces  workspaces @relation(fields: [workspaceId], references: [id])
+  business    business[] // Relação inversa para negócios neste estágio
+
+  // IMPORTANTE: A restrição de unicidade @@unique([name, workspaceId]) foi removida para permitir 
+  // estágios com o mesmo nome em um workspace, especialmente para estágios vinculados a diferentes origens
+  @@index([workspaceId])
+}
+
+model system_configs {
+  id          String     @id
+  key         String
+  value       String
+  description String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime
+  workspaceId String
+  workspaces  workspaces @relation(fields: [workspaceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([key, workspaceId])
+  @@index([workspaceId])
+}
+
+model system_fields {
+  id          String     @id
+  name        String
+  key         String
+  type        String
+  required    Boolean    @default(false)
+  editable    Boolean    @default(true)
+  options     String[]   @default([])
+  usageCount  Int        @default(0)
+  description String?
+  workspaceId String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime
+  group       String     @default("Informações Gerais")
+  workspaces  workspaces @relation(fields: [workspaceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([key, workspaceId])
+  @@index([workspaceId])
+}
+
+model tasks {
+  id                            String     @id
+  title                         String
+  description                   String?
+  dueDate                       DateTime?
+  completed                     Boolean    @default(false)
+  leadId                        String?    @db.Uuid
+  assignedTo                    String?
+  createdBy                     String
+  workspaceId                   String
+  createdAt                     DateTime   @default(now())
+  updatedAt                     DateTime
+  users_tasks_assignedToTousers users?     @relation("tasks_assignedToTousers", fields: [assignedTo], references: [id])
+  users_tasks_createdByTousers  users      @relation("tasks_createdByTousers", fields: [createdBy], references: [id])
+  leads                         leads?     @relation(fields: [leadId], references: [id])
+  workspaces                    workspaces @relation(fields: [workspaceId], references: [id])
+
+  @@index([assignedTo])
+  @@index([leadId])
+  @@index([workspaceId])
+}
+
+model user_audit_logs {
+  id        String   @id
+  userId    String
+  action    String
+  details   Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  users     users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model users {
+  id                            String                @id
+  email                         String                @unique
+  name                          String?
+  password                      String
+  role                          String                @default("user")
+  workspaceId                   String
+  emailVerified                 DateTime?
+  verifyToken                   String?
+  resetToken                    String?
+  resetTokenExpiry              DateTime?
+  lastLogin                     DateTime?
+  status                        String                @default("pending")
+  createdAt                     DateTime              @default(now())
+  updatedAt                     DateTime
+  planId                        String?
+  agentCount                    Int                   @default(0)
+  createdBy                     String?
+  permissions                   Json?
+  permissionGroupId             String?
+  access_tokens                 access_tokens[]
+  notes                         notes[]
+  tasks_tasks_assignedToTousers tasks[]               @relation("tasks_assignedToTousers")
+  tasks_tasks_createdByTousers  tasks[]               @relation("tasks_createdByTousers")
+  user_audit_logs               user_audit_logs[]
+  permission_groups             permission_groups?    @relation(fields: [permissionGroupId], references: [id], map: "users_permission_groups_fkey")
+  permissionGroup               permission_groups?    @relation("user_permissionGroup", fields: [permissionGroupId], references: [id], map: "users_permissionGroup_fkey")
+  plans                         plans?                @relation(fields: [planId], references: [id])
+  workspaces                    workspaces            @relation(fields: [workspaceId], references: [id])
+  verification_tokens           verification_tokens[]
+  ownedBusiness                 business[]            @relation("business_owner") // Relação inversa para negócios que o usuário é dono
+}
+
+model vector_stores {
+  id          String     @id
+  name        String
+  description String?
+  openaiId    String     @unique
+  files       Json?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime
+  workspaceId String
+  workspaces  workspaces @relation(fields: [workspaceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([workspaceId])
+}
+
+model verification_tokens {
+  id        String   @id
+  userId    String
+  email     String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now())
+  users     users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([email, token])
+}
+
+model whatsapp_cloud_connections {
+  id            String     @id
+  agentId       String
+  phoneNumberId String
+  accessToken   String
+  status        String     @default("inactive")
+  webhookUrl    String?
+  workspaceId   String
+  created_at    DateTime   @default(now())
+  updated_at    DateTime
+  verify_token  String     @default("navibot")
+  agents        agents     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  workspaces    workspaces @relation(fields: [workspaceId], references: [id])
+}
+
+model workspaces {
+  id                         String                       @id
+  name                       String
+  subdomain                  String?                      @unique
+  createdAt                  DateTime                     @default(now())
+  updatedAt                  DateTime
+  agents                     agents[]
+  contact_fields             contact_fields[]
+  contact_tags               contact_tags[]
+  conversations              conversations[]
+  dispara_ja_connections     dispara_ja_connections[]
+  dispara_ja_logs            dispara_ja_logs[]
+  files                      files[]
+  lead_custom_fields         lead_custom_fields[]
+  leads                      leads[]
+  notes                      notes[]
+  origin_groups              origin_groups[]
+  origins                    origins[]
+  permission_groups          permission_groups[]
+  stages                     stages[]
+  system_configs             system_configs[]
+  system_fields              system_fields[]
+  tasks                      tasks[]
+  users                      users[]
+  vector_stores              vector_stores[]
+  whatsapp_cloud_connections whatsapp_cloud_connections[]
+  business                   business[]                   // Relação inversa para negócios nesta workspace
+
+}
+
+model business {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title            String    // Título ou nome do negócio
+  value            Decimal?  @db.Decimal(10, 2) // Valor do negócio
+  leadId           String    @db.Uuid // Lead associado a este negócio
+  stageId          String    // Estágio atual do negócio no pipeline
+  originId         String    // Origem do negócio
+  ownerId          String?   // Usuário responsável pelo negócio
+  status           String?   @default("active") // Status do negócio (active, won, lost, archived)
+  probability      Int?      @db.SmallInt // Probabilidade de fechamento (0-100)
+  closedAt         DateTime? // Data de fechamento do negócio
+  expectedCloseDate DateTime? // Data esperada de fechamento
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  workspaceId      String    // Workspace do negócio
+  customFields     Json?    // Campos customizados adicionais
+  
+  // Relações
+  lead        leads      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  stage       stages     @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  origin      origins    @relation(fields: [originId], references: [id], onDelete: Restrict)
+  owner       users?     @relation("business_owner", fields: [ownerId], references: [id], onDelete: SetNull)
+  workspace   workspaces @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  // Índices para otimizar consultas
+  @@index([leadId])
+  @@index([stageId])
+  @@index([originId])
+  @@index([ownerId])
+  @@index([workspaceId])
+  @@index([status])
+}
+
+enum MessageType {
+  text
+  image
+  audio
+}

@@ -1,0 +1,1837 @@
+'use client'
+
+import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+
+const menuItems = [
+  {
+    title: 'Agentes de IA',
+    description: 'Gerenciar agentes inteligentes',
+    id: 'agents',
+    icon: '🤖'
+  },
+  {
+    title: 'Ver conversas',
+    description: 'Histórico de conversas',
+    id: 'conversations',
+    icon: '💬'
+  },
+  {
+    title: 'Ver leads',
+    description: 'Gerenciar leads do sistema',
+    id: 'leads',
+    icon: '👥'
+  },
+  {
+    title: 'Ver métricas',
+    description: 'Análise de desempenho',
+    id: 'metrics',
+    icon: '📊'
+  },
+  {
+    title: 'Integrações',
+    description: 'Configurar APIs e serviços',
+    id: 'integrations',
+    icon: '🔌'
+  }
+]
+
+// Componente de criação de agente
+const CreateAgentForm = ({ 
+  onCancel, 
+  onSuccess,
+  editingAgent = null 
+}: { 
+  onCancel: () => void, 
+  onSuccess: () => void,
+  editingAgent?: any
+}) => {
+  const [activeTab, setActiveTab] = useState('identity')
+  const [activeSection, setActiveSection] = useState('personality')
+  const [isCreating, setIsCreating] = useState(false)
+  const [error, setError] = useState('')
+  
+  // Estados para os campos do formulário
+  const [agentName, setAgentName] = useState(editingAgent?.name || '')
+  const [internalName, setInternalName] = useState(editingAgent?.internalName || '')
+  const [initialMessage, setInitialMessage] = useState(editingAgent?.initialMessage || '')
+  const [voiceTone, setVoiceTone] = useState(editingAgent?.voiceTone || 'profissional')
+  const [selectedModel, setSelectedModel] = useState(editingAgent?.model || 'gpt-4')
+  const [language, setLanguage] = useState(editingAgent?.language || 'pt')
+  const [timezone, setTimezone] = useState(editingAgent?.timezone || 'America/Sao_Paulo')
+  const [instructions, setInstructions] = useState(editingAgent?.instructions || '')
+  const [isModelLoading, setIsModelLoading] = useState(false)
+  const [modelError, setModelError] = useState('')
+  
+  // Adicionando estados para os parâmetros do modelo LLM
+  const [temperature, setTemperature] = useState(editingAgent?.temperature || 0.7)
+  const [frequencyPenalty, setFrequencyPenalty] = useState(editingAgent?.frequencyPenalty || 0.25)
+  const [presencePenalty, setPresencePenalty] = useState(editingAgent?.presencePenalty || 0.25)
+  const [maxMessages, setMaxMessages] = useState(editingAgent?.maxMessages || 20)
+  const [maxTokens, setMaxTokens] = useState(editingAgent?.maxTokens || 5000)
+  const [responseFormat, setResponseFormat] = useState(editingAgent?.responseFormat || 'text')
+  const [showLLMParams, setShowLLMParams] = useState(false)
+
+  const [companyName, setCompanyName] = useState(editingAgent?.companyName || '')
+  const [companySector, setCompanySector] = useState(editingAgent?.companySector || '')
+  const [companyWebsite, setCompanyWebsite] = useState(editingAgent?.companyWebsite || '')
+  const [companyDescription, setCompanyDescription] = useState(editingAgent?.companyDescription || '')
+
+  // Estados para os campos de prompt de IA
+  const [personalityObjective, setPersonalityObjective] = useState(editingAgent?.personalityObjective || '')
+  const [agentSkills, setAgentSkills] = useState(editingAgent?.agentSkills || '')
+  const [agentFunction, setAgentFunction] = useState(editingAgent?.agentFunction || '')
+  const [productInfo, setProductInfo] = useState(editingAgent?.productInfo || '')
+  const [restrictions, setRestrictions] = useState(editingAgent?.restrictions || '')
+
+  // Estados para estágios e condições
+  interface Stage {
+    id: string;
+    name: string;
+    description: string;
+    prompt: string;
+    conditions: Condition[];
+  }
+
+  interface Condition {
+    id: string;
+    type: 'keyword' | 'intent' | 'entity' | 'custom';
+    value: string;
+    action: 'next_stage' | 'collect_info' | 'redirect' | 'custom_response';
+    targetStageId?: string;
+    response?: string;
+  }
+
+  const [stages, setStages] = useState<Stage[]>(editingAgent?.stages || [])
+  const [editingStage, setEditingStage] = useState<Stage | null>(null)
+  const [showStageForm, setShowStageForm] = useState(false)
+  const [editingCondition, setEditingCondition] = useState<Condition | null>(null)
+  const [showConditionForm, setShowConditionForm] = useState(false)
+
+  const sections = [
+    { id: 'personality', icon: '👤', label: 'Personalidade' },
+    { id: 'brain', icon: '🧠', label: 'Cérebro' },
+    { id: 'skills', icon: '⚡', label: 'Habilidades' },
+    { id: 'visual', icon: '🎨', label: 'Visual' },
+    { id: 'usage', icon: '🎯', label: 'Onde Usar' }
+  ]
+
+  const tabs = [
+    { id: 'identity', label: 'Identidade do Agente' },
+    { id: 'company', label: 'Identidade da Empresa' },
+    { id: 'behavior', label: 'Comportamento do Agente' },
+    { id: 'functions', label: 'Funções' },
+  ]
+
+  // Função para validar o modelo selecionado com a API da OpenAI
+  const validateModel = async (model: string) => {
+    setIsModelLoading(true)
+    setModelError('')
+    try {
+      const response = await fetch('/api/integrations/openai/validate-model', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ model }),
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao validar modelo')
+      }
+
+      return true
+    } catch (error: any) {
+      setModelError(error.message)
+      return false
+    } finally {
+      setIsModelLoading(false)
+    }
+  }
+
+  // Handler para mudança de modelo
+  const handleModelChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newModel = e.target.value
+    setSelectedModel(newModel)
+    await validateModel(newModel)
+  }
+
+  const renderPersonalityContent = () => {
+    switch (activeTab) {
+      case 'stages':
+        return (
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-200 mb-2">
+                Nome do Agente
+              </label>
+              <input
+                type="text"
+                value={agentName}
+                onChange={(e) => setAgentName(e.target.value)}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Ex: Assistente de Vendas"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-200 mb-2">
+                Instruções Gerais
+              </label>
+              <textarea
+                value={instructions}
+                onChange={(e) => setInstructions(e.target.value)}
+                rows={6}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="- Você é Ana, a assistente virtual da TechSolutions Brasil.
+- Seu objetivo é fornecer um atendimento eficiente e profissional.
+- Represente os valores da empresa: inovação, excelência e foco no cliente.
+
+Ao interagir com os usuários:
+- Seja sempre cordial e profissional
+- Forneça informações precisas sobre os serviços da empresa
+- Colete informações de contato quando o usuário demonstrar interesse
+- Encaminhe para um atendente humano questões complexas ou técnicas
+- Evite fazer promessas específicas sobre prazos ou valores sem consultar a equipe"
+              />
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium text-gray-200">Estágios/Condições</h3>
+                <button 
+                  onClick={() => {
+                    setEditingStage(null);
+                    setShowStageForm(true);
+                  }}
+                  className="text-sm text-blue-400 hover:text-blue-300"
+                >
+                  + Adicionar estágio
+                </button>
+              </div>
+              
+              {stages.map((stage: Stage, index: number) => (
+                <div key={stage.id} className="bg-gray-700 p-4 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-medium text-white">Estágio {index}: {stage.name}</h4>
+                      <p className="text-xs text-gray-400">{stage.description}</p>
+                    </div>
+                    <div className="flex space-x-2">
+                      <button 
+                        onClick={() => {
+                          setEditingStage(stage);
+                          setShowStageForm(true);
+                        }}
+                        className="text-blue-400 hover:text-blue-300 text-sm"
+                      >
+                        Editar
+                      </button>
+                      {index > 0 && (
+                        <button 
+                          onClick={() => {
+                            const newStages = [...stages];
+                            newStages.splice(index, 1);
+                            setStages(newStages);
+                          }}
+                          className="text-red-400 hover:text-red-300 text-sm"
+                        >
+                          Remover
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              
+              {showStageForm && (
+                <div className="bg-gray-800 border border-gray-700 p-4 rounded-lg">
+                  <h3 className="text-md font-medium text-white mb-4">
+                    {editingStage ? 'Editar Estágio' : 'Novo Estágio'}
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-200 mb-2">
+                        Nome do Estágio
+                      </label>
+                      <input
+                        type="text"
+                        value={editingStage?.name || ''}
+                        onChange={(e) => {
+                          if (editingStage) {
+                            setEditingStage({...editingStage, name: e.target.value});
+                          } else {
+                            setEditingStage({
+                              id: `stage-${Date.now()}`,
+                              name: e.target.value,
+                              description: '',
+                              prompt: '',
+                              conditions: []
+                            });
+                          }
+                        }}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Ex: Qualificação de Lead"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-200 mb-2">
+                        Descrição
+                      </label>
+                      <input
+                        type="text"
+                        value={editingStage?.description || ''}
+                        onChange={(e) => {
+                          if (editingStage) {
+                            setEditingStage({...editingStage, description: e.target.value});
+                          }
+                        }}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Ex: Coletar informações de contato do cliente"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-200 mb-2">
+                        Prompt do Estágio
+                      </label>
+                      <textarea
+                        value={editingStage?.prompt || ''}
+                        onChange={(e) => {
+                          if (editingStage) {
+                            setEditingStage({...editingStage, prompt: e.target.value});
+                          }
+                        }}
+                        rows={4}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Ex: Neste estágio, você deve:
+- Coletar o nome do cliente de forma natural na conversa
+- Obter o e-mail do cliente para contato posterior
+- Registrar o número de telefone para follow-up
+- Perguntar sobre o interesse específico nos produtos/serviços
+- Registrar todas essas informações para uso futuro"
+                      />
+                    </div>
+                    
+                    {editingStage && (
+                      <div className="mt-6">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="text-sm font-medium text-gray-200">Condições</h4>
+                          <button 
+                            onClick={() => {
+                              setEditingCondition(null);
+                              setShowConditionForm(true);
+                            }}
+                            className="text-sm text-blue-400 hover:text-blue-300"
+                          >
+                            + Adicionar condição
+                          </button>
+                        </div>
+                        
+                        {editingStage.conditions.length > 0 ? (
+                          <div className="space-y-2 mb-4">
+                            {editingStage.conditions.map((condition: Condition, idx: number) => (
+                              <div key={condition.id} className="bg-gray-700 p-3 rounded-md flex justify-between items-center">
+                                <div>
+                                  <span className="text-sm text-white">
+                                    {condition.type === 'keyword' ? 'Palavra-chave' : 
+                                     condition.type === 'intent' ? 'Intenção' : 
+                                     condition.type === 'entity' ? 'Entidade' : 'Personalizado'}: 
+                                    <span className="font-medium ml-1">{condition.value}</span>
+                                  </span>
+                                  <p className="text-xs text-gray-400">
+                                    Ação: {condition.action === 'next_stage' ? 'Próximo estágio' : 
+                                          condition.action === 'collect_info' ? 'Coletar informação' : 
+                                          condition.action === 'redirect' ? 'Redirecionar' : 'Resposta personalizada'}
+                                  </p>
+                                </div>
+                                <div className="flex space-x-2">
+                                  <button 
+                                    onClick={() => {
+                                      setEditingCondition(condition);
+                                      setShowConditionForm(true);
+                                    }}
+                                    className="text-xs text-blue-400 hover:text-blue-300"
+                                  >
+                                    Editar
+                                  </button>
+                                  <button 
+                                    onClick={() => {
+                                      if (editingStage) {
+                                        const newConditions = [...editingStage.conditions];
+                                        newConditions.splice(idx, 1);
+                                        setEditingStage({...editingStage, conditions: newConditions});
+                                      }
+                                    }}
+                                    className="text-xs text-red-400 hover:text-red-300"
+                                  >
+                                    Remover
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-400 mb-4">Nenhuma condição definida para este estágio.</p>
+                        )}
+                        
+                        {showConditionForm && (
+                          <div className="bg-gray-900 border border-gray-700 p-3 rounded-md mb-4">
+                            <h5 className="text-sm font-medium text-white mb-3">
+                              {editingCondition ? 'Editar Condição' : 'Nova Condição'}
+                            </h5>
+                            <div className="space-y-3">
+                              <div>
+                                <label className="block text-xs font-medium text-gray-300 mb-1">
+                                  Tipo de Condição
+                                </label>
+                                <select
+                                  value={editingCondition?.type || 'keyword'}
+                                  onChange={(e) => {
+                                    if (editingCondition) {
+                                      setEditingCondition({...editingCondition, type: e.target.value as any});
+                                    } else {
+                                      setEditingCondition({
+                                        id: `condition-${Date.now()}`,
+                                        type: e.target.value as any,
+                                        value: '',
+                                        action: 'next_stage',
+                                        response: ''
+                                      });
+                                    }
+                                  }}
+                                  className="w-full px-3 py-1 bg-gray-700 border border-gray-600 rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                  <option value="keyword">Palavra-chave</option>
+                                  <option value="intent">Intenção</option>
+                                  <option value="entity">Entidade</option>
+                                  <option value="custom">Personalizado</option>
+                                </select>
+                              </div>
+                              
+                              <div>
+                                <label className="block text-xs font-medium text-gray-300 mb-1">
+                                  Valor
+                                </label>
+                                <input
+                                  type="text"
+                                  value={editingCondition?.value || ''}
+                                  onChange={(e) => {
+                                    if (editingCondition) {
+                                      setEditingCondition({...editingCondition, value: e.target.value});
+                                    }
+                                  }}
+                                  className="w-full px-3 py-1 bg-gray-700 border border-gray-600 rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  placeholder={
+                                    editingCondition?.type === 'keyword' ? "Ex: preço, orçamento" : 
+                                    editingCondition?.type === 'intent' ? "Ex: solicitar_informacao" : 
+                                    editingCondition?.type === 'entity' ? "Ex: email, telefone" : 
+                                    "Ex: condição personalizada"
+                                  }
+                                />
+                              </div>
+                              
+                              <div>
+                                <label className="block text-xs font-medium text-gray-300 mb-1">
+                                  Ação
+                                </label>
+                                <select
+                                  value={editingCondition?.action || 'next_stage'}
+                                  onChange={(e) => {
+                                    if (editingCondition) {
+                                      setEditingCondition({...editingCondition, action: e.target.value as any});
+                                    }
+                                  }}
+                                  className="w-full px-3 py-1 bg-gray-700 border border-gray-600 rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                  <option value="next_stage">Ir para próximo estágio</option>
+                                  <option value="collect_info">Coletar informação</option>
+                                  <option value="redirect">Redirecionar para humano</option>
+                                  <option value="custom_response">Resposta personalizada</option>
+                                </select>
+                              </div>
+                              
+                              {editingCondition?.action === 'next_stage' && (
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-300 mb-1">
+                                    Estágio de destino
+                                  </label>
+                                  <select
+                                    value={editingCondition?.targetStageId || ''}
+                                    onChange={(e) => {
+                                      if (editingCondition) {
+                                        setEditingCondition({...editingCondition, targetStageId: e.target.value});
+                                      }
+                                    }}
+                                    className="w-full px-3 py-1 bg-gray-700 border border-gray-600 rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  >
+                                    <option value="">Selecione um estágio</option>
+                                    {stages.map((stage: Stage) => (
+                                      <option key={stage.id} value={stage.id}>
+                                        {stage.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              )}
+                              
+                              {editingCondition?.action === 'custom_response' && (
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-300 mb-1">
+                                    Resposta personalizada
+                                  </label>
+                                  <textarea
+                                    value={editingCondition?.response || ''}
+                                    onChange={(e) => {
+                                      if (editingCondition) {
+                                        setEditingCondition({...editingCondition, response: e.target.value});
+                                      }
+                                    }}
+                                    rows={3}
+                                    className="w-full px-3 py-1 bg-gray-700 border border-gray-600 rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    placeholder="Ex: 
+- Entendi que você está interessado em nossos preços.
+- Posso fornecer mais informações sobre nossos planos.
+- Temos opções que se adaptam a diferentes necessidades e orçamentos.
+- Gostaria de conhecer algum plano específico?"
+                                  />
+                                </div>
+                              )}
+                              
+                              <div className="flex justify-end space-x-2 mt-3">
+                                <button
+                                  onClick={() => {
+                                    setShowConditionForm(false);
+                                    setEditingCondition(null);
+                                  }}
+                                  className="px-2 py-1 text-xs text-gray-300 hover:text-gray-200"
+                                >
+                                  Cancelar
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (editingCondition && editingStage) {
+                                      let newConditions;
+                                      if (editingStage.conditions.some(c => c.id === editingCondition.id)) {
+                                        // Editando condição existente
+                                        newConditions = editingStage.conditions.map((c: Condition) => 
+                                          c.id === editingCondition.id ? editingCondition : c
+                                        );
+                                      } else {
+                                        // Adicionando nova condição
+                                        newConditions = [...editingStage.conditions, editingCondition];
+                                      }
+                                      setEditingStage({...editingStage, conditions: newConditions});
+                                      setShowConditionForm(false);
+                                      setEditingCondition(null);
+                                    }
+                                  }}
+                                  className="px-2 py-1 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600"
+                                >
+                                  {editingCondition && editingStage?.conditions.some(c => c.id === editingCondition.id) 
+                                    ? 'Atualizar' 
+                                    : 'Adicionar'
+                                  }
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    <div className="flex justify-end space-x-2 mt-4">
+                      <button
+                        onClick={() => {
+                          setShowStageForm(false);
+                          setEditingStage(null);
+                        }}
+                        className="px-3 py-1 text-sm text-gray-300 hover:text-gray-200"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (editingStage) {
+                            if (editingStage.id) {
+                              // Editando estágio existente
+                              const newStages = stages.map((s: Stage) => 
+                                s.id === editingStage.id ? editingStage : s
+                              );
+                              setStages(newStages);
+                            } else {
+                              // Adicionando novo estágio
+                              setStages([...stages, editingStage]);
+                            }
+                            setShowStageForm(false);
+                            setEditingStage(null);
+                          }
+                        }}
+                        className="px-3 py-1 bg-blue-500 text-white text-sm rounded-md hover:bg-blue-600"
+                      >
+                        {editingStage?.id ? 'Atualizar' : 'Adicionar'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      case 'identity':
+        return (
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-200 mb-2">
+                Nome do agente
+              </label>
+              <input
+                type="text"
+                value={agentName}
+                onChange={(e) => setAgentName(e.target.value)}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Ex: Ana (Assistente virtual da TechSolutions)"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-200 mb-2">
+                Nome interno
+              </label>
+              <p className="text-sm text-gray-400 mb-2">
+                Não influencia no comportamento do Agente. Utilize para a sua organização.
+              </p>
+              <input
+                type="text"
+                value={internalName}
+                onChange={(e) => setInternalName(e.target.value)}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Ex: Assistente TechSolutions"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-200 mb-2">
+                Mensagem Inicial
+              </label>
+              <p className="text-sm text-gray-400 mb-2">
+                Essa mensagem será o primeiro contato do seu Agente com os usuários
+              </p>
+              <textarea
+                value={initialMessage}
+                onChange={(e) => setInitialMessage(e.target.value)}
+                rows={4}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Ex: Olá! Eu sou Ana, assistente virtual da TechSolutions Brasil.
+- Como posso ajudar você hoje?
+- Estou aqui para fornecer informações sobre nossos serviços.
+- Posso tirar dúvidas sobre tecnologia ou conectar você com nossa equipe.
+- Conte-me como posso ser útil para você!"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-200 mb-2">
+                Tom de Voz
+              </label>
+              <p className="text-sm text-gray-400 mb-2">
+                Selecione o tom de voz que o seu Agente irá utilizar durante as conversas
+              </p>
+              <select
+                value={voiceTone}
+                onChange={(e) => setVoiceTone(e.target.value)}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="formal">Formal</option>
+                <option value="casual">Casual</option>
+                <option value="amigavel">Amigável</option>
+                <option value="profissional">Profissional</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-200 mb-2">
+                Modelo do Agente
+              </label>
+              <p className="text-sm text-gray-400 mb-2">
+                Selecione o modelo do Agente para geração da resposta
+              </p>
+              <select
+                value={selectedModel}
+                onChange={handleModelChange}
+                disabled={isModelLoading}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="gpt-4">GPT-4</option>
+                <option value="gpt-4o">GPT-4o</option>
+                <option value="gpt-4o-mini">GPT-4o Mini</option>
+                <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                <option value="gpt-4-32k">GPT-4 32k</option>
+                <option value="gpt-4-0125-preview">GPT-4 Turbo Preview</option>
+                <option value="gpt-4-1106-preview">GPT-4 Turbo 1106</option>
+                <option value="gpt-4-vision-preview">GPT-4 Vision</option>
+              </select>
+              {isModelLoading && (
+                <p className="text-sm text-blue-400 mt-1">Validando modelo...</p>
+              )}
+              {modelError && (
+                <p className="text-sm text-red-400 mt-1">{modelError}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-200 mb-2">
+                Idioma
+              </label>
+              <p className="text-sm text-gray-400 mb-2">
+                Selecione o idioma do Agente para geração da resposta
+              </p>
+              <select
+                value={language}
+                onChange={(e) => setLanguage(e.target.value)}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="auto">Detecção Automática</option>
+                <option value="pt">Português</option>
+                <option value="en">Inglês</option>
+                <option value="es">Espanhol</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-200 mb-2">
+                Timezone
+              </label>
+              <p className="text-sm text-gray-400 mb-2">
+                Selecione o timezone do Agente para geração da resposta
+              </p>
+              <select
+                value={timezone}
+                onChange={(e) => setTimezone(e.target.value)}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="America/Sao_Paulo">São Paulo (GMT -3)</option>
+                <option value="America/New_York">New York (GMT -4)</option>
+                <option value="Europe/London">London (GMT +1)</option>
+                <option value="Asia/Tokyo">Tokyo (GMT +9)</option>
+              </select>
+            </div>
+
+            <div className="flex justify-end">
+              <div className="text-sm text-gray-400">
+                80 de 500 caracteres
+              </div>
+            </div>
+          </div>
+        )
+      case 'behavior':
+        return (
+          <div className="space-y-6">
+            <div>
+              {/* Removido o campo de Comportamento do agente */}
+              
+              {/* Campos de Prompt de IA */}
+              <div className="space-y-6">
+                <h3 className="text-sm font-medium text-gray-200">Configurações de Prompt</h3>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-2 flex items-center">
+                    Personalidade e Objetivo da IA 
+                    <span className="ml-1 text-gray-400 text-xs cursor-help" title="Defina a personalidade principal do agente e seu objetivo principal. Exemplo: 'Assistente amigável e prestativo que ajuda clientes a encontrar produtos ideais'.">ⓘ</span>
+                  </label>
+                  <textarea
+                    value={personalityObjective}
+                    onChange={(e) => setPersonalityObjective(e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Defina quem é o agente e qual seu objetivo principal"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-2 flex items-center">
+                    Habilidades 
+                    <span className="ml-1 text-gray-400 text-xs cursor-help" title="Liste as principais habilidades e conhecimentos que o agente deve demonstrar. Exemplo: 'Conhecimento profundo sobre produtos da empresa, capacidade de explicar conceitos técnicos de forma simples'.">ⓘ</span>
+                  </label>
+                  <textarea
+                    value={agentSkills}
+                    onChange={(e) => setAgentSkills(e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Liste as habilidades e conhecimentos que o agente deve demonstrar"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-2 flex items-center">
+                    Funções de IA 
+                    <span className="ml-1 text-gray-400 text-xs cursor-help" title="Selecione as funções específicas que o agente deve ser capaz de executar, como responder perguntas, coletar informações, agendar compromissos, etc.">ⓘ</span>
+                  </label>
+                  <select
+                    value={agentFunction}
+                    onChange={(e) => setAgentFunction(e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Selecionar</option>
+                    <option value="atendimento">Atendimento ao Cliente</option>
+                    <option value="vendas">Vendas e Conversão</option>
+                    <option value="suporte">Suporte Técnico</option>
+                    <option value="educacao">Educação e Treinamento</option>
+                    <option value="coleta">Coleta de Informações</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-2 flex items-center">
+                    Informações Sobre Produtos e Serviços 
+                    <span className="ml-1 text-gray-400 text-xs cursor-help" title="Forneça detalhes sobre os produtos e serviços que o agente deve conhecer. Inclua características, benefícios, preços e diferenciais competitivos.">ⓘ</span>
+                  </label>
+                  <textarea
+                    value={productInfo}
+                    onChange={(e) => setProductInfo(e.target.value)}
+                    rows={4}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Descreva os produtos e serviços que o agente deve conhecer"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-2 flex items-center">
+                    Restrições 
+                    <span className="ml-1 text-gray-400 text-xs cursor-help" title="Especifique o que o agente NÃO deve fazer ou dizer. Exemplo: 'Não fornecer preços específicos sem consultar a tabela atual, não fazer promessas de entrega sem confirmação'.">ⓘ</span>
+                  </label>
+                  <textarea
+                    value={restrictions}
+                    onChange={(e) => setRestrictions(e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Liste o que o agente NÃO deve fazer ou dizer"
+                  />
+                </div>
+              </div>
+              
+              {/* Parâmetros do modelo LLM */}
+              <div className="mt-6">
+                <button
+                  onClick={() => setShowLLMParams(!showLLMParams)}
+                  className="flex items-center justify-between w-full px-4 py-2 bg-gray-700 rounded-md text-white"
+                >
+                  <span className="text-sm font-medium">Parâmetros do Modelo</span>
+                  <span>{showLLMParams ? '▲' : '▼'}</span>
+                </button>
+                
+                {showLLMParams && (
+                  <div className="mt-4 p-4 bg-gray-800 rounded-md space-y-6">
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <label className="block text-sm font-medium text-gray-200 mb-2 flex items-center">
+                          Temperatura 
+                          <span className="ml-1 text-gray-400 text-xs cursor-help" title="Controla a aleatoriedade das respostas. Valores mais baixos são mais determinísticos, valores mais altos são mais criativos.">ⓘ</span>
+                        </label>
+                        <div className="flex items-center">
+                          <button 
+                            onClick={() => setTemperature(Math.max(0, temperature - 0.1))}
+                            className="px-2 py-1 bg-gray-700 text-white rounded-l-md"
+                          >
+                            −
+                          </button>
+                          <input
+                            type="number"
+                            min="0"
+                            max="2"
+                            step="0.1"
+                            value={temperature}
+                            onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                            className="w-16 px-2 py-1 bg-gray-700 border-x border-gray-600 text-white text-center"
+                          />
+                          <button 
+                            onClick={() => setTemperature(Math.min(2, temperature + 0.1))}
+                            className="px-2 py-1 bg-gray-700 text-white rounded-r-md"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="2"
+                        step="0.1"
+                        value={temperature}
+                        onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                        className="w-full mt-2"
+                      />
+                    </div>
+                    
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <label className="block text-sm font-medium text-gray-200 mb-2 flex items-center">
+                          Penalidade de frequência 
+                          <span className="ml-1 text-gray-400 text-xs cursor-help" title="Reduz a probabilidade de repetição das mesmas frases. Valores mais altos penalizam mais a repetição.">ⓘ</span>
+                        </label>
+                        <div className="flex items-center">
+                          <button 
+                            onClick={() => setFrequencyPenalty(Math.max(0, frequencyPenalty - 0.05))}
+                            className="px-2 py-1 bg-gray-700 text-white rounded-l-md"
+                          >
+                            −
+                          </button>
+                          <input
+                            type="number"
+                            min="0"
+                            max="2"
+                            step="0.05"
+                            value={frequencyPenalty}
+                            onChange={(e) => setFrequencyPenalty(parseFloat(e.target.value))}
+                            className="w-16 px-2 py-1 bg-gray-700 border-x border-gray-600 text-white text-center"
+                          />
+                          <button 
+                            onClick={() => setFrequencyPenalty(Math.min(2, frequencyPenalty + 0.05))}
+                            className="px-2 py-1 bg-gray-700 text-white rounded-r-md"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="2"
+                        step="0.05"
+                        value={frequencyPenalty}
+                        onChange={(e) => setFrequencyPenalty(parseFloat(e.target.value))}
+                        className="w-full mt-2"
+                      />
+                    </div>
+                    
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <label className="block text-sm font-medium text-gray-200 mb-2 flex items-center">
+                          Penalidade de presença 
+                          <span className="ml-1 text-gray-400 text-xs cursor-help" title="Reduz a probabilidade de repetição de tópicos. Valores mais altos incentivam o modelo a falar de novos tópicos.">ⓘ</span>
+                        </label>
+                        <div className="flex items-center">
+                          <button 
+                            onClick={() => setPresencePenalty(Math.max(0, presencePenalty - 0.05))}
+                            className="px-2 py-1 bg-gray-700 text-white rounded-l-md"
+                          >
+                            −
+                          </button>
+                          <input
+                            type="number"
+                            min="0"
+                            max="2"
+                            step="0.05"
+                            value={presencePenalty}
+                            onChange={(e) => setPresencePenalty(parseFloat(e.target.value))}
+                            className="w-16 px-2 py-1 bg-gray-700 border-x border-gray-600 text-white text-center"
+                          />
+                          <button 
+                            onClick={() => setPresencePenalty(Math.min(2, presencePenalty + 0.05))}
+                            className="px-2 py-1 bg-gray-700 text-white rounded-r-md"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="2"
+                        step="0.05"
+                        value={presencePenalty}
+                        onChange={(e) => setPresencePenalty(parseFloat(e.target.value))}
+                        className="w-full mt-2"
+                      />
+                    </div>
+                    
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <label className="block text-sm font-medium text-gray-200 mb-2 flex items-center">
+                          Número de mensagens de bate-papo antes do resumo automático 
+                          <span className="ml-1 text-gray-400 text-xs cursor-help" title="Define quantas mensagens serão mantidas no histórico antes de serem resumidas para economizar tokens.">ⓘ</span>
+                        </label>
+                        <div className="flex items-center">
+                          <button 
+                            onClick={() => setMaxMessages(Math.max(5, maxMessages - 1))}
+                            className="px-2 py-1 bg-gray-700 text-white rounded-l-md"
+                          >
+                            −
+                          </button>
+                          <input
+                            type="number"
+                            min="5"
+                            max="100"
+                            step="1"
+                            value={maxMessages}
+                            onChange={(e) => setMaxMessages(parseInt(e.target.value))}
+                            className="w-16 px-2 py-1 bg-gray-700 border-x border-gray-600 text-white text-center"
+                          />
+                          <button 
+                            onClick={() => setMaxMessages(Math.min(100, maxMessages + 1))}
+                            className="px-2 py-1 bg-gray-700 text-white rounded-r-md"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                      <input
+                        type="range"
+                        min="5"
+                        max="100"
+                        step="1"
+                        value={maxMessages}
+                        onChange={(e) => setMaxMessages(parseInt(e.target.value))}
+                        className="w-full mt-2"
+                      />
+                    </div>
+                    
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <label className="block text-sm font-medium text-gray-200 mb-2 flex items-center">
+                          Máximo de Tokens 
+                          <span className="ml-1 text-gray-400 text-xs cursor-help" title="Limite máximo de tokens que o modelo pode gerar em uma resposta.">ⓘ</span>
+                        </label>
+                        <div className="flex items-center">
+                          <button 
+                            onClick={() => setMaxTokens(Math.max(100, maxTokens - 100))}
+                            className="px-2 py-1 bg-gray-700 text-white rounded-l-md"
+                          >
+                            −
+                          </button>
+                          <input
+                            type="number"
+                            min="100"
+                            max="16000"
+                            step="100"
+                            value={maxTokens}
+                            onChange={(e) => setMaxTokens(parseInt(e.target.value))}
+                            className="w-16 px-2 py-1 bg-gray-700 border-x border-gray-600 text-white text-center"
+                          />
+                          <button 
+                            onClick={() => setMaxTokens(Math.min(16000, maxTokens + 100))}
+                            className="px-2 py-1 bg-gray-700 text-white rounded-r-md"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                      <input
+                        type="range"
+                        min="100"
+                        max="16000"
+                        step="100"
+                        value={maxTokens}
+                        onChange={(e) => setMaxTokens(parseInt(e.target.value))}
+                        className="w-full mt-2"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-200 mb-2">
+                        Formato de saída
+                      </label>
+                      <div className="flex">
+                        <button
+                          onClick={() => setResponseFormat('text')}
+                          className={`px-4 py-2 text-sm ${responseFormat === 'text' ? 'bg-blue-500 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'} rounded-l-md`}
+                        >
+                          Texto
+                        </button>
+                        <button
+                          onClick={() => setResponseFormat('markdown')}
+                          className={`px-4 py-2 text-sm ${responseFormat === 'markdown' ? 'bg-blue-500 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'} border-x border-gray-600`}
+                        >
+                          Markdown
+                        </button>
+                        <button
+                          onClick={() => setResponseFormat('json')}
+                          className={`px-4 py-2 text-sm ${responseFormat === 'json' ? 'bg-blue-500 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'} rounded-r-md`}
+                        >
+                          JSON
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="mt-8 border-t border-gray-700 pt-6">
+                <p className="text-sm text-gray-400">
+                  Altere e defina as informações para treinar o seu Agente
+                </p>
+              </div>
+            </div>
+          </div>
+        )
+      case 'functions':
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-sm font-medium text-gray-200 mb-2">Funções do Agente</h3>
+              <p className="text-xs text-gray-400 mb-4">Configure as funções que seu agente pode executar</p>
+              
+              <div className="bg-gray-700 p-4 rounded-lg">
+                <p className="text-white text-center">Funcionalidade em desenvolvimento</p>
+                <p className="text-gray-400 text-sm text-center mt-2">Esta seção estará disponível em breve.</p>
+              </div>
+            </div>
+          </div>
+        )
+      case 'company':
+        return (
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-200 mb-2">
+                Para qual empresa o Agente irá trabalhar?
+              </label>
+              <input
+                type="text"
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Ex: TechSolutions Brasil"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-200 mb-2">
+                Setor da empresa
+              </label>
+              <select
+                value={companySector}
+                onChange={(e) => setCompanySector(e.target.value)}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Selecione um setor</option>
+                <option value="viagens_intercambio">Viagens e Intercâmbio</option>
+                <option value="educacao">Educação</option>
+                <option value="saude">Saúde</option>
+                <option value="tecnologia">Tecnologia</option>
+                <option value="financas">Finanças e Bancos</option>
+                <option value="varejo">Varejo e Comércio</option>
+                <option value="imobiliario">Imobiliário</option>
+                <option value="alimentacao">Alimentação e Restaurantes</option>
+                <option value="servicos">Serviços Profissionais</option>
+                <option value="marketing">Marketing e Publicidade</option>
+                <option value="construcao">Construção Civil</option>
+                <option value="automotivo">Automotivo</option>
+                <option value="juridico">Jurídico</option>
+                <option value="outros">Outros</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-200 mb-2">
+                Site da empresa <span className="text-gray-400">(se houver)</span>
+              </label>
+              <input
+                type="url"
+                value={companyWebsite}
+                onChange={(e) => setCompanyWebsite(e.target.value)}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Ex: https://www.techsolutions.com.br"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-200 mb-2">
+                Fale sobre a sua empresa
+              </label>
+              <textarea
+                value={companyDescription}
+                onChange={(e) => setCompanyDescription(e.target.value)}
+                rows={6}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="- A TechSolutions Brasil é uma empresa líder em soluções tecnológicas inovadoras, fundada em 2010.
+- Especializada em desenvolvimento de software, consultoria em TI e transformação digital.
+- Contamos com mais de 200 colaboradores distribuídos em 5 escritórios pelo Brasil.
+- Atendemos clientes de diversos setores, desde startups até grandes corporações.
+- Nossa missão é impulsionar a inovação tecnológica com soluções personalizadas.
+- Nosso foco é gerar resultados reais para nossos clientes através de tecnologia de ponta."
+              />
+            </div>
+          </div>
+        )
+      default:
+        return null
+    }
+  }
+
+  const handleCreateAgent = async () => {
+    try {
+      setIsCreating(true)
+      setError('')
+
+      const endpoint = editingAgent ? `/api/agents/${editingAgent.id}` : '/api/agents'
+      const method = editingAgent ? 'PUT' : 'POST'
+
+      const response = await fetch(endpoint, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: agentName,
+          internalName,
+          initialMessage,
+          voiceTone,
+          model: selectedModel,
+          language,
+          timezone,
+          instructions,
+          companyName,
+          companySector,
+          companyWebsite,
+          companyDescription,
+          stages,
+          // Adicionando os novos parâmetros
+          temperature,
+          frequencyPenalty,
+          presencePenalty,
+          maxMessages,
+          maxTokens,
+          responseFormat,
+          // Adicionando os campos de prompt de IA
+          personalityObjective,
+          agentSkills,
+          agentFunction,
+          productInfo,
+          restrictions,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao salvar agente')
+      }
+
+      if (!editingAgent) {
+        // Lógica de redirecionamento específica para cada aba
+        if (activeTab === 'identity') {
+          setActiveTab('company')
+        } else if (activeTab === 'company') {
+          setActiveTab('behavior')
+        } else if (activeTab === 'behavior') {
+          setActiveTab('functions')
+        }
+      } else {
+        onSuccess()
+      }
+    } catch (error: any) {
+      setError(error.message)
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  return (
+    <div className="bg-gray-800 rounded-lg">
+      <div className="border-b border-gray-700">
+        <div className="flex items-center justify-between px-6 py-4">
+          <h2 className="text-xl font-bold text-white">
+            {editingAgent ? 'Editar Agente' : 'Criar Novo Agente'}
+          </h2>
+          <button
+            onClick={onCancel}
+            className="text-gray-400 hover:text-gray-300"
+          >
+            ✕
+          </button>
+        </div>
+        {error && (
+          <div className="mx-6 mb-4 p-4 bg-red-500/10 border border-red-500 rounded-md">
+            <p className="text-sm text-red-500">{error}</p>
+          </div>
+        )}
+        <div className="flex border-t border-gray-700">
+          {sections.map((section) => (
+            <button
+              key={section.id}
+              onClick={() => setActiveSection(section.id)}
+              className={`flex items-center px-6 py-3 text-sm font-medium ${
+                activeSection === section.id
+                  ? 'text-blue-500'
+                  : 'text-gray-400 hover:text-gray-300'
+              }`}
+            >
+              <span className="mr-2">{section.icon}</span>
+              {section.label}
+            </button>
+          ))}
+        </div>
+        {activeSection === 'personality' && (
+          <div className="flex border-t border-gray-700">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                }}
+                className={`flex items-center px-6 py-3 text-sm font-medium border-b-2 ${
+                  activeTab === tab.id
+                    ? 'border-blue-500 text-blue-500'
+                    : 'border-transparent text-gray-400 hover:text-gray-300'
+                }`}
+              >
+                <span className="mr-2">{tab.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      
+      <div className="p-6">
+        {renderPersonalityContent()}
+      </div>
+
+      <div className="flex items-center justify-end gap-4 p-6 border-t border-gray-700">
+        <button
+          onClick={onCancel}
+          className="px-4 py-2 text-sm text-gray-300 hover:text-gray-200"
+        >
+          Cancelar
+        </button>
+        <button
+          onClick={handleCreateAgent}
+          disabled={isCreating || !agentName}
+          className={`px-4 py-2 bg-blue-500 text-white text-sm rounded-md ${
+            isCreating || !agentName ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-600'
+          }`}
+        >
+          {isCreating 
+            ? (editingAgent ? 'Treinando...' : 'Treinando...') 
+            : (editingAgent ? 'Treinar Agente' : 'Treinar Agente')
+          }
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// Componente de modal de confirmação para exclusão
+const DeleteConfirmationModal = ({ 
+  agentName, 
+  onCancel, 
+  onConfirm 
+}: { 
+  agentName: string, 
+  onCancel: () => void, 
+  onConfirm: () => void 
+}) => {
+  const [confirmText, setConfirmText] = useState('')
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const handleConfirm = async () => {
+    if (confirmText !== 'Delete') return
+    
+    setIsDeleting(true)
+    await onConfirm()
+    setIsDeleting(false)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md">
+        <h2 className="text-xl font-bold text-white mb-4">Confirmar exclusão</h2>
+        <p className="text-gray-300 mb-4">
+          Você está prestes a excluir o agente <span className="font-bold text-white">{agentName}</span>. 
+          Esta ação é irreversível e todos os dados associados a este agente serão perdidos.
+        </p>
+        <p className="text-gray-300 mb-6">
+          Para confirmar, digite <span className="font-bold text-white">Delete</span> no campo abaixo:
+        </p>
+        <input
+          type="text"
+          value={confirmText}
+          onChange={(e) => setConfirmText(e.target.value)}
+          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 mb-6"
+          placeholder="Digite 'Delete' para confirmar"
+        />
+        <div className="flex justify-end gap-4">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 text-sm text-gray-300 hover:text-gray-200"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={confirmText !== 'Delete' || isDeleting}
+            className={`px-4 py-2 bg-red-500 text-white text-sm rounded-md ${
+              confirmText !== 'Delete' || isDeleting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-600'
+            }`}
+          >
+            {isDeleting ? 'Excluindo...' : 'Excluir Agente'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Atualizar o componente AgentsPage
+const AgentsPage = () => {
+  const [isCreating, setIsCreating] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editingAgent, setEditingAgent] = useState<any>(null)
+  const [agents, setAgents] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [deletingAgent, setDeletingAgent] = useState<any>(null)
+
+  const fetchAgents = async () => {
+    try {
+      setIsLoading(true)
+      const response = await fetch('/api/agents')
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao carregar agentes')
+      }
+
+      setAgents(data)
+    } catch (error: any) {
+      setError(error.message)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchAgents()
+  }, [])
+
+  const handleAgentCreated = async () => {
+    setIsCreating(false)
+    await fetchAgents()
+  }
+
+  const handleEditAgent = (agent: any) => {
+    setEditingAgent(agent)
+    setIsEditing(true)
+  }
+
+  const handleAgentUpdated = async () => {
+    setIsEditing(false)
+    setEditingAgent(null)
+    await fetchAgents()
+  }
+
+  const handleDeleteClick = (agent: any) => {
+    setDeletingAgent(agent)
+  }
+
+  const handleCancelDelete = () => {
+    setDeletingAgent(null)
+  }
+
+  const handleConfirmDelete = async () => {
+    try {
+      const response = await fetch(`/api/agents/${deletingAgent.id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Erro ao excluir agente')
+      }
+
+      setDeletingAgent(null)
+      await fetchAgents()
+    } catch (error: any) {
+      setError(error.message)
+      setDeletingAgent(null)
+    }
+  }
+
+  if (isCreating) {
+    return <CreateAgentForm onCancel={() => setIsCreating(false)} onSuccess={handleAgentCreated} />
+  }
+
+  if (isEditing && editingAgent) {
+    return (
+      <CreateAgentForm 
+        onCancel={() => {
+          setIsEditing(false)
+          setEditingAgent(null)
+        }} 
+        onSuccess={handleAgentUpdated}
+        editingAgent={editingAgent}
+      />
+    )
+  }
+
+  return (
+    <div>
+      <h2 className="text-2xl font-bold text-white mb-6">Agentes de IA</h2>
+      <div className="bg-gray-800 rounded-lg p-6">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h3 className="text-lg font-medium text-white">Seus Agentes</h3>
+            <p className="text-gray-400">Gerencie seus agentes de IA</p>
+          </div>
+          <button
+            onClick={() => setIsCreating(true)}
+            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+          >
+            Novo Agente
+          </button>
+        </div>
+        {error && (
+          <div className="mb-4 p-4 bg-red-500/10 border border-red-500 rounded-md">
+            <p className="text-sm text-red-500">{error}</p>
+          </div>
+        )}
+        <div className="space-y-4">
+          {isLoading ? (
+            <div className="bg-gray-700 p-4 rounded-lg">
+              <p className="text-white">Carregando agentes...</p>
+            </div>
+          ) : agents.length > 0 ? (
+            agents.map((agent: any) => (
+              <div key={agent.id} className="bg-gray-700 p-4 rounded-lg">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h4 className="text-lg font-medium text-white">{agent.name}</h4>
+                    <p className="text-sm text-gray-400">{agent.internalName}</p>
+                  </div>
+                  <div className="flex space-x-2">
+                    <button 
+                      onClick={() => handleEditAgent(agent)}
+                      className="px-3 py-1 text-sm text-blue-400 hover:text-blue-300"
+                    >
+                      Editar
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteClick(agent)}
+                      className="px-3 py-1 text-sm text-red-400 hover:text-red-300"
+                    >
+                      Excluir
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="bg-gray-700 p-4 rounded-lg">
+              <p className="text-white">Nenhum agente criado ainda</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {deletingAgent && (
+        <DeleteConfirmationModal
+          agentName={deletingAgent.name}
+          onCancel={handleCancelDelete}
+          onConfirm={handleConfirmDelete}
+        />
+      )}
+    </div>
+  )
+}
+
+const ConversationsPage = () => (
+  <div>
+    <h2 className="text-2xl font-bold text-white mb-6">Histórico de Conversas</h2>
+    <div className="bg-gray-800 rounded-lg p-6">
+      <div className="space-y-4">
+        <div className="bg-gray-700 p-4 rounded-lg">
+          <p className="text-white">Nenhuma conversa registrada</p>
+        </div>
+      </div>
+    </div>
+  </div>
+)
+
+const LeadsPage = () => (
+  <div>
+    <h2 className="text-2xl font-bold text-white mb-6">Leads</h2>
+    <div className="bg-gray-800 rounded-lg p-6">
+      <div className="space-y-4">
+        <div className="bg-gray-700 p-4 rounded-lg">
+          <p className="text-white">Nenhum lead registrado</p>
+        </div>
+      </div>
+    </div>
+  </div>
+)
+
+const MetricsPage = () => (
+  <div>
+    <h2 className="text-2xl font-bold text-white mb-6">Métricas</h2>
+    <div className="bg-gray-800 rounded-lg p-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="bg-gray-700 p-4 rounded-lg">
+          <h3 className="text-lg font-medium text-white">Total de Conversas</h3>
+          <p className="text-2xl text-blue-400">0</p>
+        </div>
+        <div className="bg-gray-700 p-4 rounded-lg">
+          <h3 className="text-lg font-medium text-white">Leads Gerados</h3>
+          <p className="text-2xl text-green-400">0</p>
+        </div>
+        <div className="bg-gray-700 p-4 rounded-lg">
+          <h3 className="text-lg font-medium text-white">Taxa de Conversão</h3>
+          <p className="text-2xl text-purple-400">0%</p>
+        </div>
+      </div>
+    </div>
+  </div>
+)
+
+export default function AdminDashboard() {
+  const router = useRouter()
+  const [activeSection, setActiveSection] = useState('agents')
+  const [showOpenAIConfig, setShowOpenAIConfig] = useState(false)
+  const [openAIKey, setOpenAIKey] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+  const [isConfigured, setIsConfigured] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleSaveOpenAIConfig = async () => {
+    try {
+      setIsSaving(true)
+      setError('')
+      
+      const response = await fetch('/api/integrations/openai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ apiKey: openAIKey }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao salvar configuração')
+      }
+
+      setIsConfigured(true)
+      setShowOpenAIConfig(false)
+    } catch (error: any) {
+      console.error('Erro ao salvar configuração:', error)
+      setError(error.message || 'Erro ao salvar configuração')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const renderIntegrationsContent = () => {
+    if (showOpenAIConfig) {
+      return (
+        <div className="bg-gray-800 rounded-lg p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-bold text-white">Configurar OpenAI</h2>
+            <button
+              onClick={() => setShowOpenAIConfig(false)}
+              className="text-gray-400 hover:text-gray-300"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-200 mb-2">
+                API Key da OpenAI
+              </label>
+              <p className="text-sm text-gray-400 mb-4">
+                Insira sua API key da OpenAI para habilitar a criação de assistentes inteligentes.
+                Você pode encontrar sua API key no{' '}
+                <a
+                  href="https://platform.openai.com/api-keys"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-400 hover:text-blue-300"
+                >
+                  dashboard da OpenAI
+                </a>
+                .
+              </p>
+              <input
+                type="password"
+                value={openAIKey}
+                onChange={(e) => setOpenAIKey(e.target.value)}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="sk-..."
+              />
+            </div>
+            {error && (
+              <div className="p-4 bg-red-500/10 border border-red-500 rounded-md">
+                <p className="text-sm text-red-500">{error}</p>
+              </div>
+            )}
+            <div className="flex justify-end gap-4">
+              <button
+                onClick={() => setShowOpenAIConfig(false)}
+                className="px-4 py-2 text-sm text-gray-300 hover:text-gray-200"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveOpenAIConfig}
+                disabled={!openAIKey || isSaving}
+                className={`px-4 py-2 bg-blue-500 text-white text-sm rounded-md ${
+                  !openAIKey || isSaving ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-600'
+                }`}
+              >
+                {isSaving ? 'Salvando...' : 'Salvar Configuração'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div>
+        <h2 className="text-2xl font-bold text-white mb-6">Integrações</h2>
+        <div className="bg-gray-800 rounded-lg p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="bg-gray-700 p-4 rounded-lg">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-medium text-white">OpenAI</h3>
+                  <p className="text-gray-400">Integre com GPT-4 e outros modelos</p>
+                </div>
+                {isConfigured && (
+                  <span className="px-2 py-1 text-xs font-medium text-green-400 bg-green-400/10 rounded-full">
+                    Configurado
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => setShowOpenAIConfig(true)}
+                className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-500 w-full"
+              >
+                {isConfigured ? 'Reconfigurar' : 'Configurar'}
+              </button>
+            </div>
+            <div className="bg-gray-700 p-4 rounded-lg">
+              <h3 className="text-lg font-medium text-white">Claude</h3>
+              <p className="text-gray-400 mb-4">Integre com Anthropic Claude</p>
+              <button className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-500 w-full">
+                Configurar
+              </button>
+            </div>
+            <div className="bg-gray-700 p-4 rounded-lg">
+              <h3 className="text-lg font-medium text-white">WhatsApp</h3>
+              <p className="text-gray-400 mb-4">Conecte com WhatsApp Business</p>
+              <button className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-500 w-full">
+                Configurar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const renderContent = () => {
+    switch (activeSection) {
+      case 'agents':
+        return <AgentsPage />
+      case 'conversations':
+        return <ConversationsPage />
+      case 'leads':
+        return <LeadsPage />
+      case 'metrics':
+        return <MetricsPage />
+      case 'integrations':
+        return renderIntegrationsContent()
+      default:
+        return <AgentsPage />
+    }
+  }
+
+  return (
+    <div className="flex h-screen bg-gray-900">
+      {/* Sidebar */}
+      <div className="w-64 bg-gray-800">
+        <div className="flex items-center h-16 px-4 bg-gray-900">
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+              <span className="text-lg font-bold text-white">N</span>
+            </div>
+            <span className="text-xl font-bold text-white">Navibot</span>
+          </div>
+        </div>
+        <nav className="mt-4">
+          <div className="px-4 py-2">
+            <div className="relative">
+              <button className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 rounded-md">
+                Conta agência
+              </button>
+            </div>
+          </div>
+          <div className="px-4 py-2">
+            <h3 className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase">
+              Gestão de Agentes
+            </h3>
+            {menuItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setActiveSection(item.id)}
+                className={`w-full flex items-center px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 rounded-md ${
+                  activeSection === item.id ? 'bg-gray-700' : ''
+                }`}
+              >
+                <span className="mr-3">{item.icon}</span>
+                {item.title}
+              </button>
+            ))}
+          </div>
+          <div className="px-4 py-2">
+            <h3 className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase">
+              Ecossistema
+            </h3>
+            <button className="w-full flex items-center px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 rounded-md">
+              <span className="mr-3">💬</span>
+              Comunidade no Discord
+            </button>
+            <button className="w-full flex items-center px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 rounded-md">
+              <span className="mr-3">🚀</span>
+              Programa de Aceleração
+            </button>
+            <button className="w-full flex items-center px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 rounded-md">
+              <span className="mr-3">❓</span>
+              Suporte
+            </button>
+          </div>
+        </nav>
+        <div className="absolute bottom-0 w-64 p-4 bg-gray-800">
+          <div className="flex items-center p-2 bg-gray-900 rounded-lg">
+            <div className="flex-shrink-0">
+              <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center text-white">
+                IC
+              </div>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-white">IVAN CARLOS</p>
+              <p className="text-xs text-gray-400">ivancnogueira@gmail.com</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 overflow-auto">
+        <header className="bg-gray-800 shadow-md">
+          <div className="flex items-center justify-between h-16 px-8">
+            <h1 className="text-xl font-bold text-white">Dashboard</h1>
+            <button
+              onClick={() => router.push('/api/auth/signout')}
+              className="px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 rounded-md"
+            >
+              Sair
+            </button>
+          </div>
+        </header>
+
+        <main className="p-8">
+          {renderContent()}
+        </main>
+      </div>
+    </div>
+  )
+} 

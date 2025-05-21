@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentação - Navibot Platform</title>
+    <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h3>Conteúdo</h3>
+            <ul>
+                <li><a href="#introducao">Introdução</a></li>
+                <li><a href="#instalacao">Instalação</a></li>
+                <li><a href="#configuracao">Configuração</a></li>
+                <li><a href="#uso">Uso</a></li>
+                <li><a href="#agentes">Agentes de IA</a></li>
+                <li><a href="#arquivos">Gerenciamento de Arquivos</a></li>
+                <li><a href="#vetores">Armazenamento de Vetores</a></li>
+                <li><a href="#integracao">Integrações</a></li>
+                <li><a href="#api">API</a></li>
+                <li><a href="#faq">FAQ</a></li>
+            </ul>
+        </div>
+        
+        <div class="content">
+            <h1>Documentação do Navibot Platform</h1>
+            
+            <section id="introducao">
+                <h2>Introdução</h2>
+                <p>
+                    O Navibot Platform é uma solução completa para gerenciar agentes de IA, permitindo a integração com diversos canais de comunicação, como WhatsApp. A plataforma oferece uma interface amigável para configurar e monitorar seus agentes de IA.
+                </p>
+                <p>
+                    Com o Navibot Platform, você pode criar agentes personalizados, gerenciar arquivos, configurar armazenamentos de vetores e integrar com diferentes canais de comunicação.
+                </p>
+            </section>
+            
+            <section id="instalacao">
+                <h2>Instalação</h2>
+                <p>
+                    Para instalar o Navibot Platform, siga os passos abaixo:
+                </p>
+                
+                <h3>Requisitos</h3>
+                <ul>
+                    <li>Node.js v16 ou superior</li>
+                    <li>npm v7 ou superior</li>
+                    <li>PostgreSQL 12 ou superior</li>
+                    <li>Conta na OpenAI e chave de API</li>
+                    <li>Conta no Supabase (opcional, para armazenamento de arquivos)</li>
+                </ul>
+                
+                <h3>Instalação Rápida</h3>
+                <h4>Linux/macOS</h4>
+                <pre><code>chmod +x install.sh
+./install.sh</code></pre>
+                
+                <h4>Windows</h4>
+                <pre><code>install.bat</code></pre>
+                
+                <p>
+                    O script de instalação irá guiá-lo através do processo de configuração, incluindo a criação do arquivo <code>.env</code> com as variáveis de ambiente necessárias.
+                </p>
+                
+                <h3>Instalação Manual</h3>
+                <pre><code># Clonar o repositório
+git clone https://github.com/seu-usuario/navibot-platform.git
+cd navibot-platform
+
+# Instalar dependências
+npm install
+
+# Gerar Prisma Client
+npx prisma generate
+
+# Criar arquivo .env (veja a seção de Configuração)
+
+# Aplicar migrações do banco de dados
+npx prisma db push
+
+# Construir o projeto
+npm run build</code></pre>
+            </section>
+            
+            <section id="configuracao">
+                <h2>Configuração</h2>
+                <p>
+                    O Navibot Platform utiliza um arquivo <code>.env</code> para configurar as variáveis de ambiente. Abaixo estão as principais variáveis que você precisa configurar:
+                </p>
+                
+                <h3>Variáveis de Ambiente</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Variável</th>
+                            <th>Descrição</th>
+                            <th>Exemplo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>DATABASE_URL</td>
+                            <td>URL de conexão com o banco de dados PostgreSQL</td>
+                            <td>postgresql://usuario:senha@localhost:5432/navibot</td>
+                        </tr>
+                        <tr>
+                            <td>OPENAI_API_KEY</td>
+                            <td>Chave de API da OpenAI</td>
+                            <td>sk-abcdefghijklmnopqrstuvwxyz</td>
+                        </tr>
+                        <tr>
+                            <td>NEXTAUTH_URL</td>
+                            <td>URL base para autenticação</td>
+                            <td>http://localhost:3000</td>
+                        </tr>
+                        <tr>
+                            <td>NEXTAUTH_SECRET</td>
+                            <td>Chave secreta para autenticação</td>
+                            <td>sua_chave_secreta</td>
+                        </tr>
+                        <tr>
+                            <td>SUPABASE_URL</td>
+                            <td>URL do Supabase (opcional)</td>
+                            <td>https://abcdefghijklm.supabase.co</td>
+                        </tr>
+                        <tr>
+                            <td>SUPABASE_KEY</td>
+                            <td>Chave do Supabase (opcional)</td>
+                            <td>eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...</td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <div class="note">
+                    <strong>Nota:</strong> O script de instalação irá criar automaticamente o arquivo <code>.env</code> e solicitar as informações necessárias.
+                </div>
+            </section>
+            
+            <section id="uso">
+                <h2>Uso</h2>
+                <p>
+                    Após a instalação e configuração, você pode iniciar o servidor de desenvolvimento ou de produção.
+                </p>
+                
+                <h3>Modo de Desenvolvimento</h3>
+                <pre><code>npm run dev</code></pre>
+                
+                <p>
+                    O servidor de desenvolvimento será iniciado em <a href="http://localhost:3000">http://localhost:3000</a>.
+                </p>
+                
+                <h3>Modo de Produção</h3>
+                <pre><code>npm run build
+npm start</code></pre>
+                
+                <p>
+                    O servidor de produção será iniciado em <a href="http://localhost:3000">http://localhost:3000</a>.
+                </p>
+                
+                <h3>Acesso ao Painel Administrativo</h3>
+                <p>
+                    Acesse o painel administrativo em <a href="http://localhost:3000/admin">http://localhost:3000/admin</a>.
+                </p>
+            </section>
+            
+            <section id="agentes">
+                <h2>Agentes de IA</h2>
+                <p>
+                    Os agentes de IA são o coração do Navibot Platform. Eles são responsáveis por processar as mensagens recebidas e gerar respostas apropriadas.
+                </p>
+                
+                <h3>Criação de Agentes</h3>
+                <p>
+                    Para criar um novo agente, acesse o painel administrativo e clique em "Criar Agente". Preencha os campos necessários:
+                </p>
+                <ul>
+                    <li><strong>Nome:</strong> Nome do agente</li>
+                    <li><strong>Descrição:</strong> Descrição do agente</li>
+                    <li><strong>Modelo:</strong> Modelo de IA a ser utilizado</li>
+                    <li><strong>Instruções:</strong> Instruções para o agente</li>
+                    <li><strong>Funções:</strong> Funções disponíveis para o agente</li>
+                    <li><strong>Arquivos:</strong> Arquivos disponíveis para o agente</li>
+                </ul>
+                
+                <h3>Edição de Agentes</h3>
+                <p>
+                    Para editar um agente existente, acesse o painel administrativo, encontre o agente na lista e clique em "Editar". Você pode modificar todos os campos do agente.
+                </p>
+                
+                <h3>Exclusão de Agentes</h3>
+                <p>
+                    Para excluir um agente, acesse o painel administrativo, encontre o agente na lista e clique em "Excluir". Confirme a exclusão digitando "Delete" no campo de confirmação.
+                </p>
+                
+                <div class="warning">
+                    <strong>Atenção:</strong> A exclusão de um agente é permanente e não pode ser desfeita.
+                </div>
+            </section>
+            
+            <section id="arquivos">
+                <h2>Gerenciamento de Arquivos</h2>
+                <p>
+                    O Navibot Platform permite o gerenciamento de arquivos que podem ser utilizados pelos agentes de IA.
+                </p>
+                
+                <h3>Upload de Arquivos</h3>
+                <p>
+                    Para fazer upload de um arquivo, acesse o painel administrativo e vá para a seção "Arquivos de IA". Clique em "Adicionar Arquivo" e selecione o arquivo desejado.
+                </p>
+                
+                <h3>Listagem de Arquivos</h3>
+                <p>
+                    Na seção "Arquivos de IA", você pode ver todos os arquivos disponíveis, incluindo informações como nome, tamanho e data de upload.
+                </p>
+                
+                <h3>Exclusão de Arquivos</h3>
+                <p>
+                    Para excluir um arquivo, acesse a seção "Arquivos de IA", encontre o arquivo na lista e clique no ícone de lixeira. Confirme a exclusão digitando "Delete" no campo de confirmação.
+                </p>
+            </section>
+            
+            <section id="vetores">
+                <h2>Armazenamento de Vetores</h2>
+                <p>
+                    O armazenamento de vetores permite que os agentes de IA acessem informações de forma mais eficiente, utilizando embeddings para buscar informações relevantes.
+                </p>
+                
+                <h3>Criação de Armazenamento de Vetores</h3>
+                <p>
+                    Para criar um novo armazenamento de vetores, acesse o painel administrativo e vá para a seção "Armazenamento de Vetores". Clique em "Criar Armazenamento" e preencha os campos necessários:
+                </p>
+                <ul>
+                    <li><strong>Nome:</strong> Nome do armazenamento</li>
+                    <li><strong>Descrição:</strong> Descrição do armazenamento</li>
+                    <li><strong>Arquivos:</strong> Arquivos a serem incluídos no armazenamento</li>
+                </ul>
+                
+                <h3>Listagem de Armazenamentos de Vetores</h3>
+                <p>
+                    Na seção "Armazenamento de Vetores", você pode ver todos os armazenamentos disponíveis, incluindo informações como nome, descrição e quantidade de arquivos.
+                </p>
+                
+                <h3>Exclusão de Armazenamentos de Vetores</h3>
+                <p>
+                    Para excluir um armazenamento de vetores, acesse a seção "Armazenamento de Vetores", encontre o armazenamento na lista e clique no ícone de lixeira. Confirme a exclusão digitando "Delete" no campo de confirmação.
+                </p>
+            </section>
+            
+            <section id="integracao">
+                <h2>Integrações</h2>
+                <p>
+                    O Navibot Platform permite a integração com diversos canais de comunicação, como WhatsApp.
+                </p>
+                
+                <h3>WhatsApp</h3>
+                <p>
+                    Para integrar com o WhatsApp, acesse o painel administrativo e vá para a seção "Canais". Clique em "Adicionar Canal" e selecione "WhatsApp". Preencha os campos necessários:
+                </p>
+                <ul>
+                    <li><strong>Nome:</strong> Nome do canal</li>
+                    <li><strong>Agente:</strong> Agente de IA a ser utilizado</li>
+                    <li><strong>Tipo de Integração:</strong> WhatsApp Cloud API ou Z-API</li>
+                    <li><strong>Credenciais:</strong> Credenciais de acesso à API do WhatsApp</li>
+                </ul>
+                
+                <h3>Outros Canais</h3>
+                <p>
+                    O Navibot Platform está em constante evolução e novas integrações serão adicionadas no futuro.
+                </p>
+            </section>
+            
+            <section id="api">
+                <h2>API</h2>
+                <p>
+                    O Navibot Platform oferece uma API para integração com outros sistemas.
+                </p>
+                
+                <h3>Autenticação</h3>
+                <p>
+                    A API utiliza autenticação JWT. Para obter um token de acesso, faça uma requisição POST para <code>/api/auth/login</code> com as credenciais de usuário.
+                </p>
+                
+                <h3>Endpoints</h3>
+                <p>
+                    A documentação completa da API está disponível em <a href="http://localhost:3000/api/docs">http://localhost:3000/api/docs</a>.
+                </p>
+            </section>
+            
+            <section id="faq">
+                <h2>FAQ</h2>
+                <h3>Como posso adicionar um novo usuário?</h3>
+                <p>
+                    Atualmente, a adição de novos usuários é feita diretamente no banco de dados. Em versões futuras, será adicionada uma interface para gerenciamento de usuários.
+                </p>
+                
+                <h3>Quais modelos de IA são suportados?</h3>
+                <p>
+                    O Navibot Platform suporta todos os modelos disponíveis na API da OpenAI, incluindo GPT-3.5 e GPT-4.
+                </p>
+                
+                <h3>Como posso personalizar o comportamento do meu agente?</h3>
+                <p>
+                    Você pode personalizar o comportamento do seu agente através das instruções fornecidas durante a criação ou edição do agente. Além disso, você pode adicionar funções personalizadas e arquivos para melhorar a capacidade do agente.
+                </p>
+                
+                <h3>O que fazer se eu encontrar um erro?</h3>
+                <p>
+                    Se você encontrar um erro, verifique os logs do servidor para obter mais informações. Se o erro persistir, entre em contato com o suporte.
+                </p>
+            </section>
+            
+            <div class="note" style="margin-top: 50px;">
+                <p>
+                    <strong>Dica:</strong> Para acessar esta documentação a qualquer momento, visite <a href="http://localhost:3000/docs">http://localhost:3000/docs</a> quando o servidor estiver em execução.
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Script para destacar o item atual na navegação
+        document.addEventListener('DOMContentLoaded', function() {
+            const sections = document.querySelectorAll('section');
+            const navLinks = document.querySelectorAll('.sidebar a');
+            
+            window.addEventListener('scroll', function() {
+                let current = '';
+                
+                sections.forEach(section => {
+                    const sectionTop = section.offsetTop;
+                    const sectionHeight = section.clientHeight;
+                    if (pageYOffset >= sectionTop - 200) {
+                        current = section.getAttribute('id');
+                    }
+                });
+                
+                navLinks.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href').substring(1) === current) {
+                        link.classList.add('active');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html> 

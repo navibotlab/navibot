@@ -1,0 +1,50 @@
+// Modelo Business - Representa um negócio que associa leads, estágios e origens
+model business {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String    // Título ou nome do negócio
+  value       Decimal?  @db.Decimal(10, 2) // Valor do negócio
+  leadId      String    @db.Uuid // Lead associado a este negócio
+  stageId     String    // Estágio atual do negócio no pipeline
+  originId    String    // Origem do negócio
+  ownerId     String?   // Usuário responsável pelo negócio
+  status      String?   @default("active") // Status do negócio (active, won, lost, archived)
+  probability Int?      @db.SmallInt // Probabilidade de fechamento (0-100)
+  closedAt    DateTime? // Data de fechamento do negócio
+  expectedCloseDate DateTime? // Data esperada de fechamento
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  workspaceId String    // Workspace do negócio
+  customFields Json?    // Campos customizados adicionais
+  
+  // Relações
+  lead        leads      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  stage       stages     @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  origin      origins    @relation(fields: [originId], references: [id], onDelete: Restrict)
+  owner       users?     @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  workspace   workspaces @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  // Índices para otimizar consultas
+  @@index([leadId])
+  @@index([stageId])
+  @@index([originId])
+  @@index([ownerId])
+  @@index([workspaceId])
+  @@index([status])
+}
+
+// Também é necessário atualizar os modelos relacionados para incluir a relação com Business:
+
+// Adicionar esta linha ao modelo leads:
+// business business[]
+
+// Adicionar esta linha ao modelo stages:
+// business business[]
+
+// Adicionar esta linha ao modelo origins:
+// business business[]
+
+// Adicionar esta linha ao modelo users:
+// ownedBusiness business[] @relation("business_owner")
+
+// Adicionar esta linha ao modelo workspaces:
+// business business[] 
