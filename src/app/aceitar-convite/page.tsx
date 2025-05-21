@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,8 +12,27 @@ import { Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 export default function AceitarConvitePage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <AceitarConviteForm />
+      <Suspense fallback={<CarregandoConvite />}>
+        <AceitarConviteForm />
+      </Suspense>
     </div>
+  );
+}
+
+// Componente de carregamento para o fallback do Suspense
+function CarregandoConvite() {
+  return (
+    <Card className="w-full max-w-md shadow-lg">
+      <CardHeader>
+        <CardTitle className="text-center">Carregando Convite</CardTitle>
+        <CardDescription className="text-center">
+          Aguarde enquanto verificamos seus dados...
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex justify-center py-6">
+        <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
+      </CardContent>
+    </Card>
   );
 }
 
@@ -23,7 +42,7 @@ function AceitarConviteForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [status, setStatus] = useState<'pending' | 'verified' | 'error'>('pending');
+  const [status, setStatus] = useState<'pending' | 'verifying' | 'verified' | 'error'>('pending');
   const [formData, setFormData] = useState({
     email: '',
     token: '',
@@ -39,7 +58,11 @@ function AceitarConviteForm() {
 
     if (token && email) {
       setFormData(prev => ({ ...prev, token, email }));
+      setStatus('verifying');
       validateToken(token, email);
+    } else {
+      setError('Parâmetros de convite ausentes ou inválidos.');
+      setStatus('error');
     }
   }, [searchParams]);
 
@@ -63,6 +86,7 @@ function AceitarConviteForm() {
       }
 
       setTokenIsValid(true);
+      setStatus('pending');
     } catch (err: any) {
       console.error('Erro ao validar token:', err);
       setError(err.message || 'Erro ao validar o token');
@@ -76,6 +100,9 @@ function AceitarConviteForm() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Limpar erro quando usuário começa a digitar
+    if (error) setError('');
   };
 
   // Função para submeter o formulário
@@ -132,10 +159,27 @@ function AceitarConviteForm() {
     }
   };
 
+  // Mostrar indicador de carregamento durante a verificação do token
+  if (status === 'verifying') {
+    return (
+      <Card className="w-full max-w-md shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-center">Verificando Convite</CardTitle>
+          <CardDescription className="text-center">
+            Aguarde enquanto validamos seu convite...
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex justify-center py-6">
+          <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
+        </CardContent>
+      </Card>
+    );
+  }
+
   // Mostrar mensagem de erro se o token for inválido
   if (status === 'error') {
     return (
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md shadow-lg">
         <CardHeader>
           <CardTitle className="text-center text-red-600">Convite Inválido</CardTitle>
           <CardDescription className="text-center">
@@ -161,7 +205,7 @@ function AceitarConviteForm() {
   // Mostrar mensagem de sucesso após confirmar o convite
   if (status === 'verified') {
     return (
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md shadow-lg">
         <CardHeader>
           <CardTitle className="text-center text-green-600">Convite Aceito</CardTitle>
           <CardDescription className="text-center">
@@ -188,7 +232,7 @@ function AceitarConviteForm() {
 
   // Mostrar formulário para definir senha
   return (
-    <Card className="w-full max-w-md">
+    <Card className="w-full max-w-md shadow-lg">
       <CardHeader>
         <CardTitle className="text-center">Aceitar Convite</CardTitle>
         <CardDescription className="text-center">
@@ -213,6 +257,7 @@ function AceitarConviteForm() {
               value={formData.email}
               disabled
               readOnly
+              className="bg-gray-50"
             />
           </div>
 
@@ -227,6 +272,7 @@ function AceitarConviteForm() {
               disabled={isLoading || !tokenIsValid}
               required
               placeholder="Digite sua senha"
+              className="focus:border-blue-500"
             />
             <p className="text-xs text-gray-500">A senha deve ter pelo menos 6 caracteres</p>
           </div>
@@ -242,6 +288,7 @@ function AceitarConviteForm() {
               disabled={isLoading || !tokenIsValid}
               required
               placeholder="Confirme sua senha"
+              className="focus:border-blue-500"
             />
           </div>
         </CardContent>
