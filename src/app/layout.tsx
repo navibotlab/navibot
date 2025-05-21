@@ -142,52 +142,43 @@ export default function RootLayout({
       
         {/* Script para detectar atualizações da aplicação */}
         <script dangerouslySetInnerHTML={{ __html: `
-          // Verificar atualizações a cada 5 minutos
-          setInterval(function checkForUpdates() {
-            // Função para processar os dados de versão
-            function handleVersionData(data) {
-              // Armazenar a versão atual na primeira vez
-              if (!localStorage.getItem('appVersion')) {
-                localStorage.setItem('appVersion', data.version);
+          // Função para carregar de forma segura, sem quebrar a página
+          function safeVersionCheck() {
+            try {
+              // Verificar atualizações a cada 5 minutos, mas apenas em páginas que não sejam a de login
+              // Isso evita bloqueios na página de login
+              if (window.location.pathname.includes('/login') || 
+                  window.location.pathname.includes('/esqueci-senha') || 
+                  window.location.pathname.includes('/criar-conta') ||
+                  window.location.pathname.includes('/recuperar-senha')) {
+                console.log('Verificação de versão desativada em páginas de autenticação');
                 return;
               }
+
+              setInterval(function checkForUpdates() {
+                // Função para processar os dados de versão
+                function handleVersionData(data) {
+                  // Armazenar a versão atual na primeira vez
+                  if (!localStorage.getItem('appVersion')) {
+                    localStorage.setItem('appVersion', data.version);
+                    return;
+                  }
+                  
+                  // Comparar com a versão armazenada
+                  const currentVersion = localStorage.getItem('appVersion');
+                  if (data.version && data.version !== currentVersion) {
+                    console.log('Nova versão disponível:', data.version);
+                    localStorage.setItem('appVersion', data.version);
+                    
+                    // Perguntar ao usuário se deseja atualizar
+                    if (confirm('Uma nova versão da aplicação está disponível. Deseja atualizar agora?')) {
+                      localStorage.setItem('forceReload', 'true');
+                      window.location.reload(true);
+                    }
+                  }
+                }
               
-              // Comparar com a versão armazenada
-              const currentVersion = localStorage.getItem('appVersion');
-              if (data.version && data.version !== currentVersion) {
-                console.log('Nova versão disponível:', data.version);
-                localStorage.setItem('appVersion', data.version);
-                
-                // Perguntar ao usuário se deseja atualizar
-                if (confirm('Uma nova versão da aplicação está disponível. Deseja atualizar agora?')) {
-                  localStorage.setItem('forceReload', 'true');
-                  window.location.reload(true);
-                }
-              }
-            }
-          
-            // Tentar primeiro a API
-            fetch('/api/version?t=' + new Date().getTime())
-              .then(response => {
-                // Verificar se a resposta é JSON válido
-                if (!response.ok) {
-                  throw new Error('Resposta não-OK: ' + response.status);
-                }
-                
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
-                  throw new Error('Tipo de conteúdo inválido: ' + contentType);
-                }
-                
-                return response.json();
-              })
-              .then(data => {
-                handleVersionData(data);
-              })
-              .catch(err => {
-                console.log('Erro ao verificar atualizações via API:', err.message || err);
-                
-                // Fallback: tentar o arquivo público diretamente
+                // Tentar primeiro o arquivo público diretamente que é mais estável
                 fetch('/version.json?t=' + new Date().getTime())
                   .then(response => {
                     if (!response.ok) throw new Error('Arquivo não disponível');
@@ -198,11 +189,43 @@ export default function RootLayout({
                   })
                   .catch(fileErr => {
                     console.log('Erro ao verificar arquivo de versão:', fileErr.message || fileErr);
+                    
+                    // Fallback: tentar a API apenas se o arquivo falhar
+                    fetch('/api/version?t=' + new Date().getTime())
+                      .then(response => {
+                        // Verificar se a resposta é JSON válido
+                        if (!response.ok) {
+                          throw new Error('Resposta não-OK: ' + response.status);
+                        }
+                        
+                        const contentType = response.headers.get('content-type');
+                        if (!contentType || !contentType.includes('application/json')) {
+                          throw new Error('Tipo de conteúdo inválido: ' + contentType);
+                        }
+                        
+                        return response.json();
+                      })
+                      .then(data => {
+                        handleVersionData(data);
+                      })
+                      .catch(err => {
+                        console.log('Erro ao verificar atualizações via API:', err.message || err);
+                      });
                   });
-              });
-            
-            return checkForUpdates;
-          }(), 300000);
+                
+                return checkForUpdates;
+              }(), 300000);
+            } catch (e) {
+              console.log('Erro no sistema de verificação de versão:', e);
+            }
+          }
+          
+          // Inicializar verificação de versão após carregamento completo da página
+          if (document.readyState === 'complete') {
+            safeVersionCheck();
+          } else {
+            window.addEventListener('load', safeVersionCheck);
+          }
           
           // Forçar limpeza de cache se necessário
           if (localStorage.getItem('forceReload') === 'true') {
