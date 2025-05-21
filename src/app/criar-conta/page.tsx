@@ -1,13 +1,34 @@
 'use client'
 
 import * as React from 'react'
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Search, X, Check, Eye, EyeOff } from "lucide-react"
 import { countries } from '@/lib/data/countries'
 import "flag-icons/css/flag-icons.min.css"
 import { CountrySelect } from '@/components/CountrySelect'
+
+// Componente principal com Suspense
+export default function CriarConta() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-[#0F1115]">
+        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <span className="ml-2 text-white">Carregando...</span>
+      </div>
+    }>
+      <CriarContaFormWrapper />
+    </Suspense>
+  )
+}
+
+// Componente que carrega useSearchParams se necessário
+function CriarContaFormWrapper() {
+  // Se a página usa searchParams, deve importar aqui
+  // Caso contrário, podemos apenas renderizar o conteúdo diretamente
+  return <CriarContaContent />
+}
 
 // Funções auxiliares
 const formatPhoneNumber = (value: string, mask: string) => {
@@ -33,7 +54,7 @@ const formatPhoneNumber = (value: string, mask: string) => {
   return result;
 };
 
-export default function CriarContaPage() {
+function CriarContaContent() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 interface ValidationErrors {
@@ -9,7 +9,61 @@ interface ValidationErrors {
   confirmPassword?: string;
 }
 
+// Componente principal sem nenhum uso de hooks de roteamento
 export default function RecuperarSenha() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-[#0F1115]">
+        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <span className="ml-2 text-white">Carregando...</span>
+      </div>
+    }>
+      <RecuperarSenhaForm />
+    </Suspense>
+  )
+}
+
+// Este componente é carregado com Suspense e é onde usamos useSearchParams
+function RecuperarSenhaForm() {
+  // Este componente importa useSearchParams somente quando realmente necessário
+  // Isso ajuda a evitar os problemas de CSR bailout
+  const { useSearchParams } = require('next/navigation')
+  const searchParams = useSearchParams()
+  const token = searchParams ? searchParams.get('token') : null
+  
+  // Se não tivermos token, apenas mostramos uma mensagem e um link para voltar
+  if (!token) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0F1115]">
+        <div className="max-w-md w-full space-y-8 p-8 bg-[#1A1D24] rounded-lg shadow-lg border border-gray-800">
+          <div>
+            <h1 className="text-2xl font-bold text-white text-center">
+              Token Inválido
+            </h1>
+            <p className="mt-2 text-center text-sm text-gray-400">
+              O link de recuperação de senha é inválido ou expirou.
+            </p>
+          </div>
+          
+          <div className="text-center mt-4">
+            <Link 
+              href="/esqueci-senha"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md inline-block"
+            >
+              Solicitar novo link
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+  
+  // Se temos token, mostrar o formulário de redefinição
+  return <RecuperarSenhaContent token={token} />
+}
+
+// Componente com a lógica do formulário - não usa useSearchParams diretamente
+function RecuperarSenhaContent({ token }: { token: string }) {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -17,14 +71,6 @@ export default function RecuperarSenha() {
   const [success, setSuccess] = useState(false)
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({})
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const token = searchParams ? searchParams.get('token') : null
-
-  useEffect(() => {
-    if (!token) {
-      router.push('/login')
-    }
-  }, [token, router])
 
   // Validação em tempo real
   useEffect(() => {
@@ -75,10 +121,6 @@ export default function RecuperarSenha() {
     } finally {
       setIsLoading(false)
     }
-  }
-
-  if (!token) {
-    return null
   }
 
   return (

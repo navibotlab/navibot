@@ -25,104 +25,6 @@ export default function VerificarEmail() {
   )
 }
 
-// Componentes personalizados para substituir o framer-motion
-// Componente FadeIn
-const FadeIn = ({ children, className = "", delay = 0 }: { 
-  children: React.ReactNode; 
-  className?: string;
-  delay?: number;
-}) => {
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsVisible(true), delay);
-    return () => clearTimeout(timer);
-  }, [delay]);
-
-  return (
-    <div 
-      className={`transition-opacity duration-500 ease-in-out ${isVisible ? 'opacity-100' : 'opacity-0'} ${className}`}
-    >
-      {children}
-    </div>
-  );
-};
-
-// Componente SlideUp
-const SlideUp = ({ children, className = "", delay = 0 }: { 
-  children: React.ReactNode; 
-  className?: string;
-  delay?: number;
-}) => {
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsVisible(true), delay);
-    return () => clearTimeout(timer);
-  }, [delay]);
-
-  return (
-    <div 
-      className={`transition-all duration-500 ease-in-out ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'} ${className}`}
-      style={{ transitionDelay: `${delay}ms` }}
-    >
-      {children}
-    </div>
-  );
-};
-
-// Componente SlideDown
-const SlideDown = ({ children, className = "", delay = 0 }: { 
-  children: React.ReactNode; 
-  className?: string;
-  delay?: number;
-}) => {
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsVisible(true), delay);
-    return () => clearTimeout(timer);
-  }, [delay]);
-
-  return (
-    <div 
-      className={`transition-all duration-500 ease-in-out ${isVisible ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0'} ${className}`}
-      style={{ transitionDelay: `${delay}ms` }}
-    >
-      {children}
-    </div>
-  );
-};
-
-// Componente AnimatedButton 
-const AnimatedButton = ({ 
-  children, 
-  className = "", 
-  disabled = false, 
-  type = "button",
-  onClick,
-  ...props 
-}: {
-  children: React.ReactNode;
-  className?: string;
-  disabled?: boolean;
-  type?: "button" | "submit" | "reset";
-  onClick?: () => void;
-  [key: string]: any;
-}) => {
-  return (
-    <button 
-      type={type}
-      className={`transition-transform duration-150 hover:scale-[1.01] active:scale-[0.99] ${className}`} 
-      disabled={disabled}
-      onClick={onClick}
-      {...props}
-    >
-      {children}
-    </button>
-  );
-};
-
 // Componente principal agora recebe searchParams como props
 const VerificarEmailContent = ({ searchParams }: { searchParams: ReturnType<typeof useSearchParams> }) => {
   const [token, setToken] = useState('')
@@ -134,13 +36,13 @@ const VerificarEmailContent = ({ searchParams }: { searchParams: ReturnType<type
 
   useEffect(() => {
     // Obter o email da URL se estiver presente
-    const emailFromUrl = searchParams.get('email')
+    const emailFromUrl = searchParams ? searchParams.get('email') : null
     if (emailFromUrl) {
       setEmail(emailFromUrl)
     }
   }, [searchParams])
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
     setIsLoading(true)
@@ -216,27 +118,24 @@ const VerificarEmailContent = ({ searchParams }: { searchParams: ReturnType<type
   }
 
   return (
-    <FadeIn className="min-h-screen flex items-center justify-center bg-[#0F1115]">
-      <SlideUp
-        className="max-w-md w-full space-y-8 p-8 bg-[#1A1D24] rounded-lg shadow-lg border border-gray-800"
-        delay={200}
-      >
+    <div className="min-h-screen flex items-center justify-center bg-[#0F1115]">
+      <div className="max-w-md w-full space-y-8 p-8 bg-[#1A1D24] rounded-lg shadow-lg border border-gray-800">
         <div>
-          <SlideDown className="text-2xl font-bold text-white text-center">
+          <h2 className="text-2xl font-bold text-white text-center">
             Verificar Email
-          </SlideDown>
+          </h2>
           <p className="mt-2 text-center text-sm text-gray-400">
             Digite o código de verificação enviado para seu email
           </p>
         </div>
 
         {isSuccess ? (
-          <FadeIn
-            className="text-green-500 bg-green-900/20 p-4 rounded-md border border-green-800 text-center"
-          >
-            <p className="font-medium">Email verificado com sucesso!</p>
-            <p className="text-sm mt-1">Você será redirecionado para a página de login.</p>
-          </FadeIn>
+          <div className="bg-green-900/20 border border-green-900/50 rounded-md p-4">
+            <p className="text-green-500 text-center font-medium">Email verificado com sucesso!</p>
+            <p className="text-green-400 text-sm text-center mt-2">
+              Você será redirecionado para a página de login em instantes.
+            </p>
+          </div>
         ) : (
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
             <div className="space-y-4">
@@ -250,11 +149,11 @@ const VerificarEmailContent = ({ searchParams }: { searchParams: ReturnType<type
                   type="email"
                   autoComplete="email"
                   required
-                  className="appearance-none relative block w-full px-3 py-2 border border-gray-700 rounded-md placeholder-gray-500 text-white bg-[#0F1115] focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
-                  placeholder="seu@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  disabled={isLoading || !!searchParams.get('email')}
+                  className="appearance-none relative block w-full px-3 py-2 border border-gray-700 rounded-md placeholder-gray-500 text-white bg-[#0F1115] focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
+                  placeholder="seu@email.com"
+                  disabled={isLoading}
                 />
               </div>
 
@@ -266,62 +165,61 @@ const VerificarEmailContent = ({ searchParams }: { searchParams: ReturnType<type
                   id="token"
                   name="token"
                   type="text"
-                  required
-                  className="appearance-none relative block w-full px-3 py-2 border border-gray-700 rounded-md placeholder-gray-500 text-white bg-[#0F1115] focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
-                  placeholder="Digite o código recebido por email"
                   value={token}
                   onChange={(e) => setToken(e.target.value)}
+                  className="appearance-none relative block w-full px-3 py-2 border border-gray-700 rounded-md placeholder-gray-500 text-white bg-[#0F1115] focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
+                  placeholder="Digite o código recebido por email"
                   disabled={isLoading}
+                  required
                 />
               </div>
             </div>
 
             {error && (
-              <FadeIn
-                className="text-red-500 text-sm text-center bg-red-900/20 p-2 rounded-md border border-red-900/50"
-              >
+              <div className="text-red-500 text-sm text-center bg-red-900/20 p-2 rounded-md border border-red-900/50">
                 {error}
-              </FadeIn>
+              </div>
             )}
 
-            <div className="flex flex-col space-y-4">
-              <AnimatedButton
+            <div className="flex flex-col space-y-3">
+              <button
                 type="submit"
                 disabled={isLoading}
-                className={`relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white ${
-                  isLoading ? 'bg-blue-600/70 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
-                } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200`}
+                className="group relative w-full flex justify-center py-2 px-4 border border-transparent rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading ? (
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span className="flex items-center">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Processando...
+                  </span>
                 ) : (
                   'Verificar Email'
                 )}
-              </AnimatedButton>
+              </button>
 
-              <div className="text-center text-sm">
+              <div className="text-center">
                 <button
                   type="button"
                   onClick={handleResendVerification}
-                  disabled={isLoading || !email}
-                  className="text-blue-500 hover:text-blue-400 transition-colors disabled:text-gray-500 disabled:cursor-not-allowed"
+                  className="text-sm text-blue-400 hover:text-blue-300"
+                  disabled={isLoading}
                 >
-                  Não recebeu o código? Reenviar
+                  Reenviar código de verificação
                 </button>
               </div>
 
-              <div className="text-center">
-                <p className="text-sm text-gray-400">
-                  Voltar para{' '}
-                  <Link href="/login" className="text-blue-500 hover:text-blue-400 transition-colors">
-                    Login
-                  </Link>
-                </p>
+              <div className="text-center mt-4">
+                <Link href="/login" className="text-sm text-blue-400 hover:text-blue-300">
+                  Voltar para o login
+                </Link>
               </div>
             </div>
           </form>
         )}
-      </SlideUp>
-    </FadeIn>
-  );
-}; 
+      </div>
+    </div>
+  )
+} 
