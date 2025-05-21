@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { ArrowLeft, Search, Filter, Calendar, User, Tag, MoreHorizontal, RefreshCw, Download, Settings, Plus, Briefcase, Check, X } from 'lucide-react';
 import Link from 'next/link';
 import { PipelineBoard } from './components/PipelineBoard';
@@ -33,7 +33,29 @@ interface User {
   photo?: string | null;
 }
 
+// Componente principal sem useSearchParams
 export default function PipelinePage() {
+  return (
+    <Suspense fallback={<CarregandoPipeline />}>
+      <PipelineContent />
+    </Suspense>
+  );
+}
+
+// Componente de carregamento para o fallback do Suspense
+function CarregandoPipeline() {
+  return (
+    <div className="flex flex-col h-screen p-4">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Carregando Pipeline...</h1>
+      </div>
+      <div className="flex-1 bg-gray-100 rounded-lg animate-pulse"></div>
+    </div>
+  );
+}
+
+// Componente que usa useSearchParams dentro do Suspense
+function PipelineContent() {
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showGlobalAddModal, setShowGlobalAddModal] = useState(false);
   const [globalNewLead, setGlobalNewLead] = useState<any>(null);
