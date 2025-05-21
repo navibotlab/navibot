@@ -61,6 +61,14 @@ const nextConfig = {
     formats: ['image/avif', 'image/webp'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048],
     imageSizes: [16, 32, 48, 64, 96, 128, 256],
+    domains: [
+      'avatars.githubusercontent.com',
+      'lh3.googleusercontent.com',
+      'github.com',
+      'res.cloudinary.com',
+      'xnxnxnxnxnxnx.io',
+      process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('https://', '') || '',
+    ],
   },
 
   // Configuração do compilador que é crucial para React 19
@@ -168,6 +176,43 @@ const nextConfig = {
     }
 
     return config;
+  },
+
+  // Configurar segurança de sessão para o NextAuth em produção
+  env: {
+    // Garantir que o NextAuth use cookies seguros em produção
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'),
+    // Outras variáveis de ambiente
+  },
+  
+  // Impedir vazamento de credenciais na URL
+  async redirects() {
+    return [
+      {
+        // Redirecionar qualquer URL que contenha credenciais para página de login limpa
+        source: '/login:params*',
+        destination: '/login',
+        permanent: false,
+        has: [
+          {
+            type: 'query',
+            key: 'email',
+          },
+        ],
+      },
+      {
+        // Redirecionar qualquer URL que contenha senha para página de login limpa
+        source: '/login:params*',
+        destination: '/login',
+        permanent: false,
+        has: [
+          {
+            type: 'query',
+            key: 'password',
+          },
+        ],
+      },
+    ]
   },
 };
 

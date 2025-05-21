@@ -12,7 +12,16 @@ export default function Login() {
   const [error, setError] = useState('');
   const [debugInfo, setDebugInfo] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [environment, setEnvironment] = useState('');
   const router = useRouter();
+
+  // Detectar ambiente ao carregar o componente
+  useEffect(() => {
+    const host = window.location.host;
+    const isProduction = host.includes('app.navibot.com.br');
+    const isDevelopment = host.includes('localhost') || host.includes('127.0.0.1');
+    setEnvironment(isProduction ? 'Produção' : (isDevelopment ? 'Desenvolvimento' : 'Desconhecido'));
+  }, []);
 
   // Função simplificada para login
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>) => {
@@ -23,7 +32,8 @@ export default function Login() {
     try {
       setIsLoading(true);
       setError('');
-      setDebugInfo('Iniciando login... ');
+      const envInfo = `Ambiente: ${environment}`;
+      setDebugInfo(`Iniciando login... ${envInfo}`);
       
       // Verificação básica
       if (!email || !password) {
@@ -35,20 +45,23 @@ export default function Login() {
       // Log diretamente no DOM para diagnóstico
       const debugElement = document.getElementById('debug-output');
       if (debugElement) {
-        debugElement.innerText = 'Tentando autenticar...';
+        debugElement.innerText = `Tentando autenticar... ${envInfo}`;
+        debugElement.className = 'text-xs p-2 bg-gray-900 text-green-400 rounded';
       }
       
       // Tentar fazer login
       const result = await signIn('credentials', {
         redirect: false,
         email,
-        password
+        password,
+        callbackUrl: '/admin' // Define o redirecionamento após o login bem-sucedido
       });
       
       // Atualizar informações de debug
-      setDebugInfo(`Resposta: ${JSON.stringify(result)}`);
+      const responseInfo = `Resposta: ${JSON.stringify(result)}`;
+      setDebugInfo(`${envInfo}. ${responseInfo}`);
       if (debugElement) {
-        debugElement.innerText += `\nResposta: ${JSON.stringify(result)}`;
+        debugElement.innerText += `\n${responseInfo}`;
       }
       
       // Verificar resultado
@@ -67,19 +80,18 @@ export default function Login() {
       }
       
       // Sucesso - redirecionar
-      setDebugInfo('Login bem-sucedido! Redirecionando...');
+      setDebugInfo(`${envInfo}. Login bem-sucedido! Redirecionando...`);
       if (debugElement) {
         debugElement.innerText += '\nLogin bem-sucedido! Redirecionando...';
       }
       
-      setTimeout(() => {
-        router.push('/admin');
-      }, 1000);
+      // Redirecionar diretamente usando router.push para evitar parâmetros na URL
+      router.push('/admin');
       
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro desconhecido';
       setError(`Falha no login: ${message}`);
-      setDebugInfo(`Exceção: ${message}`);
+      setDebugInfo(`Ambiente: ${environment}. Exceção: ${message}`);
       setIsLoading(false);
       
       const debugElement = document.getElementById('debug-output');
@@ -99,6 +111,11 @@ export default function Login() {
           <p className="mt-2 text-center text-sm text-gray-400">
             Faça login para acessar
           </p>
+          {environment && (
+            <p className="text-center text-xs text-blue-400 mt-1">
+              Ambiente: {environment}
+            </p>
+          )}
         </div>
 
         {/* Usando uma abordagem direta com um formulário tradicional */}
@@ -153,8 +170,8 @@ export default function Login() {
             </div>
           )}
 
-          {/* Área de debug oculta para diagnosticar problemas */}
-          <div id="debug-output" className="hidden text-xs p-2 bg-gray-900 text-green-400 rounded"></div>
+          {/* Área de debug para diagnóstico - visível agora */}
+          <div id="debug-output" className="text-xs p-2 bg-gray-900 text-green-400 rounded"></div>
 
           <div>
             <button

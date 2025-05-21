@@ -92,6 +92,19 @@ export const authOptions: NextAuthOptions = {
     error: "/login",
     signOut: "/login"
   },
+  // Configuração para evitar credenciais na URL em produção
+  useSecureCookies: process.env.NODE_ENV === 'production',
+  cookies: {
+    sessionToken: {
+      name: process.env.NODE_ENV === 'production' ? '__Secure-next-auth.session-token' : 'next-auth.session-token',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production'
+      }
+    }
+  },
   logger: {
     error(code, metadata) {
       safeErrorLog('NextAuth Error', code, metadata);
