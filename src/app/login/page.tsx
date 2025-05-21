@@ -4,6 +4,7 @@ import { useState, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { signIn } from 'next-auth/react'
+import { safeLog } from '@/lib/utils/security'
 
 // Componente principal com Suspense
 export default function Login() {
@@ -33,7 +34,7 @@ function LoginForm() {
     setIsLoading(true);
 
     try {
-      console.log('Login - Tentando autenticar com:', { email });
+      safeLog('Login - Tentando autenticar com:', { email }, ['email']);
       
       const result = await signIn('credentials', {
         email,
@@ -41,7 +42,7 @@ function LoginForm() {
         redirect: false
       });
       
-      console.log('Login - Resultado da autenticação:', result);
+      safeLog('Login - Resultado da autenticação:', result);
 
       if (result?.error) {
         if (result.error === 'CredentialsSignin') {
@@ -53,7 +54,7 @@ function LoginForm() {
         return;
       }
 
-      console.log('Login bem-sucedido, redirecionando...');
+      safeLog('Login bem-sucedido, redirecionando...', { email }, ['email']);
       router.replace('/admin');
     } catch (error) {
       console.error('Login - Erro durante autenticação:', error);
