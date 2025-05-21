@@ -1,120 +1,15 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-
-// Componentes personalizados para substituir o framer-motion
-// Componente FadeIn
-const FadeIn = ({ children, className = "", delay = 0 }: { 
-  children: React.ReactNode; 
-  className?: string;
-  delay?: number;
-}) => {
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsVisible(true), delay);
-    return () => clearTimeout(timer);
-  }, [delay]);
-
-  return (
-    <div 
-      className={`transition-opacity duration-500 ease-in-out ${isVisible ? 'opacity-100' : 'opacity-0'} ${className}`}
-    >
-      {children}
-    </div>
-  );
-};
-
-// Componente SlideUp
-const SlideUp = ({ children, className = "", delay = 0 }: { 
-  children: React.ReactNode; 
-  className?: string;
-  delay?: number;
-}) => {
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsVisible(true), delay);
-    return () => clearTimeout(timer);
-  }, [delay]);
-
-  return (
-    <div 
-      className={`transition-all duration-500 ease-in-out ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'} ${className}`}
-      style={{ transitionDelay: `${delay}ms` }}
-    >
-      {children}
-    </div>
-  );
-};
-
-// Componente AnimatedButton 
-const AnimatedButton = ({ 
-  children, 
-  className = "", 
-  disabled = false, 
-  type = "button",
-  onClick,
-  ...props 
-}: {
-  children: React.ReactNode;
-  className?: string;
-  disabled?: boolean;
-  type?: "button" | "submit" | "reset";
-  onClick?: () => void;
-  [key: string]: any;
-}) => {
-  return (
-    <button 
-      type={type}
-      className={`transition-transform duration-150 hover:scale-[1.01] active:scale-[0.99] ${className}`} 
-      disabled={disabled}
-      onClick={onClick}
-      {...props}
-    >
-      {children}
-    </button>
-  );
-};
-
-// Componente AnimatedPresence para gerenciar componentes que entram e saem
-const AnimatedPresence = ({ children }: { children: React.ReactNode }) => {
-  return <>{children}</>;
-};
-
-// Componente ErrorMessage animado
-const AnimatedErrorMessage = ({ message, show }: { message: string; show: boolean }) => {
-  const [isVisible, setIsVisible] = useState(false);
-  
-  useEffect(() => {
-    if (show) {
-      const timer = setTimeout(() => setIsVisible(true), 10);
-      return () => clearTimeout(timer);
-    } else {
-      setIsVisible(false);
-    }
-  }, [show]);
-  
-  if (!show) return null;
-  
-  return (
-    <div
-      className={`text-red-500 text-xs mt-1 transition-all duration-300 ease-in-out overflow-hidden ${
-        isVisible ? 'opacity-100 max-h-20' : 'opacity-0 max-h-0'
-      }`}
-    >
-      {message}
-    </div>
-  );
-};
+import Link from 'next/link'
 
 interface ValidationErrors {
   password?: string;
   confirmPassword?: string;
 }
 
-const RecuperarSenhaContent = () => {
+export default function RecuperarSenha() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -123,7 +18,7 @@ const RecuperarSenhaContent = () => {
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({})
   const router = useRouter()
   const searchParams = useSearchParams()
-  const token = searchParams.get('token')
+  const token = searchParams ? searchParams.get('token') : null
 
   useEffect(() => {
     if (!token) {
@@ -146,7 +41,7 @@ const RecuperarSenhaContent = () => {
     setValidationErrors(errors)
   }, [password, confirmPassword])
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     
     if (Object.keys(validationErrors).length > 0) {
@@ -187,11 +82,8 @@ const RecuperarSenhaContent = () => {
   }
 
   return (
-    <FadeIn className="min-h-screen flex items-center justify-center bg-[#0F1115]">
-      <SlideUp
-        className="max-w-md w-full space-y-8 p-8 bg-[#1A1D24] rounded-lg shadow-lg border border-gray-800"
-        delay={200}
-      >
+    <div className="min-h-screen flex items-center justify-center bg-[#0F1115]">
+      <div className="max-w-md w-full space-y-8 p-8 bg-[#1A1D24] rounded-lg shadow-lg border border-gray-800">
         <div>
           <h1 className="text-2xl font-bold text-white text-center">
             Recuperar Senha
@@ -221,12 +113,9 @@ const RecuperarSenhaContent = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isLoading}
                 />
-                <AnimatedPresence>
-                  <AnimatedErrorMessage 
-                    message={validationErrors.password || ''} 
-                    show={!!validationErrors.password}
-                  />
-                </AnimatedPresence>
+                {validationErrors.password && (
+                  <p className="text-red-500 text-xs mt-1">{validationErrors.password}</p>
+                )}
               </div>
 
               <div>
@@ -246,78 +135,56 @@ const RecuperarSenhaContent = () => {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   disabled={isLoading}
                 />
-                <AnimatedPresence>
-                  <AnimatedErrorMessage 
-                    message={validationErrors.confirmPassword || ''} 
-                    show={!!validationErrors.confirmPassword}
-                  />
-                </AnimatedPresence>
+                {validationErrors.confirmPassword && (
+                  <p className="text-red-500 text-xs mt-1">{validationErrors.confirmPassword}</p>
+                )}
               </div>
             </div>
 
-            <AnimatedPresence>
-              {error && (
-                <FadeIn className="text-red-500 text-sm text-center bg-red-900/20 p-2 rounded-md border border-red-900/50">
-                  {error}
-                </FadeIn>
-              )}
-            </AnimatedPresence>
+            {error && (
+              <div className="text-red-500 text-sm text-center bg-red-900/20 p-2 rounded-md border border-red-900/50">
+                {error}
+              </div>
+            )}
 
-            <AnimatedButton
-              type="submit"
-              disabled={isLoading || Object.keys(validationErrors).length > 0}
-              className={`relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white ${
-                isLoading || Object.keys(validationErrors).length > 0
-                  ? 'bg-blue-600/70 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700'
-              } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200`}
-            >
-              {isLoading ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                'Redefinir Senha'
-              )}
-            </AnimatedButton>
+            <div>
+              <button
+                type="submit"
+                disabled={isLoading || Object.keys(validationErrors).length > 0}
+                className="group relative w-full flex justify-center py-2 px-4 border border-transparent rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? (
+                  <span className="flex items-center">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Processando...
+                  </span>
+                ) : (
+                  'Redefinir senha'
+                )}
+              </button>
+            </div>
           </form>
         ) : (
-          <FadeIn className="text-center space-y-6">
-            <div className="rounded-full bg-green-500/20 p-4 mx-auto w-16 h-16 flex items-center justify-center">
-              <svg
-                className="w-8 h-8 text-green-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-            </div>
-            <div className="space-y-2">
-              <h3 className="text-lg font-medium text-white">Senha alterada!</h3>
-              <p className="text-sm text-gray-400">
-                Sua senha foi alterada com sucesso. Você será redirecionado para a página de login.
-              </p>
-            </div>
-          </FadeIn>
+          <div className="bg-green-900/20 border border-green-900/50 rounded-md p-4">
+            <p className="text-green-500 text-center font-medium">Senha atualizada com sucesso!</p>
+            <p className="text-green-400 text-sm text-center mt-2">
+              Você será redirecionado para a página de login em instantes.
+            </p>
+          </div>
         )}
-      </SlideUp>
-    </FadeIn>
-  )
-}
 
-export default function RecuperarSenha() {
-  return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen bg-[#0F1115]">
-        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-        <span className="ml-2 text-white">Carregando...</span>
+        <div className="text-center mt-4">
+          <Link 
+            href="/login"
+            className="text-sm text-blue-400 hover:text-blue-300"
+          >
+            Voltar para o login
+          </Link>
+        </div>
       </div>
-    }>
-      <RecuperarSenhaContent />
-    </Suspense>
+    </div>
   )
 } 

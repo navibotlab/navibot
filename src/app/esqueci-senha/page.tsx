@@ -1,120 +1,17 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
-// Componentes personalizados para substituir o framer-motion
-const FadeIn = ({ children, className = "", delay = 0 }: { 
-  children: React.ReactNode; 
-  className?: string;
-  delay?: number;
-}) => {
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsVisible(true), delay);
-    return () => clearTimeout(timer);
-  }, [delay]);
-
-  return (
-    <div 
-      className={`transition-opacity duration-500 ease-in-out ${isVisible ? 'opacity-100' : 'opacity-0'} ${className}`}
-    >
-      {children}
-    </div>
-  );
-};
-
-const SlideUp = ({ children, className = "", delay = 0 }: { 
-  children: React.ReactNode; 
-  className?: string;
-  delay?: number;
-}) => {
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsVisible(true), delay);
-    return () => clearTimeout(timer);
-  }, [delay]);
-
-  return (
-    <div 
-      className={`transition-all duration-500 ease-in-out ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'} ${className}`}
-      style={{ transitionDelay: `${delay}ms` }}
-    >
-      {children}
-    </div>
-  );
-};
-
-const SlideDown = ({ children, className = "", delay = 0 }: { 
-  children: React.ReactNode; 
-  className?: string;
-  delay?: number;
-}) => {
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsVisible(true), delay);
-    return () => clearTimeout(timer);
-  }, [delay]);
-
-  return (
-    <div 
-      className={`transition-all duration-500 ease-in-out ${isVisible ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0'} ${className}`}
-      style={{ transitionDelay: `${delay}ms` }}
-    >
-      {children}
-    </div>
-  );
-};
-
-const AnimatedButton = ({ children, className = "", disabled = false, ...props }: {
-  children: React.ReactNode;
-  className?: string;
-  disabled?: boolean;
-  [key: string]: any;
-}) => {
-  return (
-    <button 
-      className={`transition-transform duration-150 hover:scale-[1.01] active:scale-[0.99] ${className}`} 
-      disabled={disabled}
-      {...props}
-    >
-      {children}
-    </button>
-  );
-};
-
-// Spinner animado sem usar framer-motion
-const Spinner = () => (
-  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-);
-
-// Componente principal com Suspense boundary, simplificado
 export default function EsqueciSenha() {
-  return <EsqueciSenhaForm />;
-}
-
-// Componente de carregamento para o fallback do Suspense
-function CarregandoEsqueciSenha() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0F1115]">
-      <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-      <span className="ml-2 text-white">Carregando...</span>
-    </div>
-  );
-}
-
-// Componente com a lógica principal
-function EsqueciSenhaForm() {
   const [email, setEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const router = useRouter()
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setIsLoading(true)
     setError('')
@@ -143,35 +40,32 @@ function EsqueciSenhaForm() {
   }
 
   return (
-    <FadeIn className="min-h-screen flex items-center justify-center bg-[#0F1115]">
-      <SlideUp 
-        className="max-w-md w-full space-y-8 p-8 bg-[#1A1D24] rounded-lg shadow-lg border border-gray-800"
-        delay={200}
-      >
+    <div className="min-h-screen flex items-center justify-center bg-[#0F1115]">
+      <div className="max-w-md w-full space-y-8 p-8 bg-[#1A1D24] rounded-lg shadow-lg border border-gray-800">
         <div>
-          <SlideDown className="text-2xl font-bold text-white text-center">
+          <h2 className="text-2xl font-bold text-white text-center">
             Esqueci minha senha
-          </SlideDown>
+          </h2>
           <p className="mt-2 text-center text-sm text-gray-400">
             Digite seu email para receber as instruções
           </p>
         </div>
 
         {success ? (
-          <FadeIn className="bg-green-900/20 border border-green-900/50 rounded-md p-4">
+          <div className="bg-green-900/20 border border-green-900/50 rounded-md p-4">
             <p className="text-green-500 text-center font-medium">Email enviado com sucesso!</p>
             <p className="text-green-400 text-sm text-center mt-2">
               Verifique sua caixa de entrada e siga as instruções para redefinir sua senha.
             </p>
             <div className="mt-4 flex justify-center">
-              <AnimatedButton
+              <button
                 onClick={() => router.push('/login')}
                 className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors text-sm"
               >
                 Voltar para o login
-              </AnimatedButton>
+              </button>
             </div>
-          </FadeIn>
+          </div>
         ) : (
           <form onSubmit={handleSubmit} className="mt-6 space-y-6">
             <div>
@@ -192,35 +86,43 @@ function EsqueciSenhaForm() {
               />
             </div>
 
-              {error && (
-              <FadeIn className="text-red-500 text-sm text-center bg-red-900/20 p-2 rounded-md border border-red-900/50">
-                  {error}
-              </FadeIn>
-              )}
+            {error && (
+              <div className="text-red-500 text-sm text-center bg-red-900/20 p-2 rounded-md border border-red-900/50">
+                {error}
+              </div>
+            )}
 
             <div className="flex flex-col space-y-3">
-              <AnimatedButton
+              <button
                 type="submit"
                 disabled={isLoading}
-                className={`relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white ${
-                  isLoading ? 'bg-blue-600/70 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
-                } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200`}
+                className="group relative w-full flex justify-center py-2 px-4 border border-transparent rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isLoading ? <Spinner /> : 'Enviar instruções'}
-              </AnimatedButton>
+                {isLoading ? (
+                  <span className="flex items-center">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Processando...
+                  </span>
+                ) : (
+                  'Enviar instruções'
+                )}
+              </button>
 
               <div className="text-center mt-4">
-                <a
+                <Link 
                   href="/login"
-                  className="text-sm text-blue-500 hover:text-blue-400 transition-colors"
-              >
-                Voltar para o login
-                </a>
+                  className="text-sm text-blue-400 hover:text-blue-300"
+                >
+                  Voltar para o login
+                </Link>
               </div>
             </div>
           </form>
         )}
-      </SlideUp>
-    </FadeIn>
+      </div>
+    </div>
   )
 } 
