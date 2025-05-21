@@ -141,9 +141,29 @@ interface FormEvent extends React.FormEvent<HTMLFormElement> {
 
 // Componente principal
 export default function Login() {
+  // Verificar se o usuário já está autenticado fora do Suspense
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  
+  // Redirecionar se já estiver autenticado
+  useEffect(() => {
+    if (session) {
+      safeLog('Login page - User is authenticated, redirecting to admin', {
+        user: session.user
+      }, ['email']);
+      router.replace('/admin');
+    }
+  }, [session, router]);
+
+  // Se ainda está carregando a sessão, mostrar carregamento
+  if (status === "loading") {
+    return <CarregandoLogin />;
+  }
+  
+  // Se não está autenticado, mostrar formulário de login
   return (
     <Suspense fallback={<CarregandoLogin />}>
-      <LoginContent />
+      <LoginForm />
     </Suspense>
   );
 }
@@ -158,32 +178,20 @@ function CarregandoLogin() {
   );
 }
 
-// Componente com a lógica de login
-function LoginContent() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [rememberMe, setRememberMe] = useState(false)
-  const router = useRouter()
-  const { data: session, status } = useSession()
-  const searchParams = useSearchParams()
-
-  // Debug: mostrar status da sessão
-  useEffect(() => {
-    safeLog('Login page - Session status:', { status, session });
-    if (session) {
-      safeLog('Login page - User is authenticated, redirecting to admin', {
-        user: session.user
-      }, ['email']);
-      router.replace('/admin');
-    }
-  }, [session, status, router]);
+// Componente com o formulário de login (sem useSession)
+function LoginForm() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setIsLoading(true)
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
 
     try {
       safeLog('Login - Tentando autenticar com:', { email }, ['email']);

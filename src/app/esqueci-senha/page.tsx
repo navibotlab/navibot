@@ -91,13 +91,9 @@ const Spinner = () => (
   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
 );
 
-// Componente principal com Suspense boundary
+// Componente principal com Suspense boundary, simplificado
 export default function EsqueciSenha() {
-  return (
-    <Suspense fallback={<CarregandoEsqueciSenha />}>
-      <EsqueciSenhaContent />
-    </Suspense>
-  );
+  return <EsqueciSenhaForm />;
 }
 
 // Componente de carregamento para o fallback do Suspense
@@ -111,7 +107,7 @@ function CarregandoEsqueciSenha() {
 }
 
 // Componente com a lógica principal
-function EsqueciSenhaContent() {
+function EsqueciSenhaForm() {
   const [email, setEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
