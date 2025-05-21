@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 
 // Componentes personalizados para substituir o framer-motion
@@ -91,7 +91,27 @@ const Spinner = () => (
   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
 );
 
+// Componente principal com Suspense boundary
 export default function EsqueciSenha() {
+  return (
+    <Suspense fallback={<CarregandoEsqueciSenha />}>
+      <EsqueciSenhaContent />
+    </Suspense>
+  );
+}
+
+// Componente de carregamento para o fallback do Suspense
+function CarregandoEsqueciSenha() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[#0F1115]">
+      <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      <span className="ml-2 text-white">Carregando...</span>
+    </div>
+  );
+}
+
+// Componente com a lógica principal
+function EsqueciSenhaContent() {
   const [email, setEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')

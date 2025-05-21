@@ -1,9 +1,9 @@
 'use client'
 
 import * as React from 'react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { signIn, useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { safeLog } from '@/lib/utils/security'
 
@@ -139,7 +139,27 @@ interface FormEvent extends React.FormEvent<HTMLFormElement> {
   preventDefault: () => void;
 }
 
+// Componente principal
 export default function Login() {
+  return (
+    <Suspense fallback={<CarregandoLogin />}>
+      <LoginContent />
+    </Suspense>
+  );
+}
+
+// Componente de carregamento
+function CarregandoLogin() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[#0F1115]">
+      <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      <span className="ml-2 text-white">Carregando...</span>
+    </div>
+  );
+}
+
+// Componente com a lógica de login
+function LoginContent() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -147,6 +167,7 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(false)
   const router = useRouter()
   const { data: session, status } = useSession()
+  const searchParams = useSearchParams()
 
   // Debug: mostrar status da sessão
   useEffect(() => {
