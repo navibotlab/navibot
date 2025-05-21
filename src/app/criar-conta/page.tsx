@@ -328,7 +328,7 @@ function CriarContaContent() {
           </p>
         </div>
 
-        <form className="mt-8 space-y-5" onSubmit={handleSubmit} method="post">
+        <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
           {/* Nome */}
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-gray-400 mb-1">

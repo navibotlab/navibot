@@ -82,7 +82,7 @@ function EsqueciSenhaForm() {
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="mt-6 space-y-6" method="post">
+          <form onSubmit={handleSubmit} className="mt-6 space-y-6">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-400 mb-1">
                 Email
