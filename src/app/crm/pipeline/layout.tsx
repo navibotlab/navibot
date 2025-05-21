@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useState, useEffect, useRef } from 'react';
+import { ReactNode, useState, useEffect, useRef, Suspense } from 'react';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -33,7 +33,36 @@ interface OriginGroup {
   origins?: Origin[];
 }
 
+// Componente principal que não usa hooks que precisam de Suspense
 export default function PipelineLayout({ children }: { children: ReactNode }) {
+  return (
+    <Suspense fallback={<CarregandoPipeline />}>
+      <PipelineLayoutContent children={children} />
+    </Suspense>
+  );
+}
+
+// Componente de carregamento para o fallback do Suspense
+function CarregandoPipeline() {
+  return (
+    <div className="flex min-h-screen bg-[#0F1115]">
+      <div className="w-64 bg-[#1A1D24] p-4">
+        <div className="h-8 w-full bg-gray-700 rounded-md animate-pulse mb-4"></div>
+        <div className="space-y-3">
+          {[1, 2, 3, 4, 5].map(i => (
+            <div key={i} className="h-6 w-full bg-gray-700 rounded-md animate-pulse"></div>
+          ))}
+        </div>
+      </div>
+      <div className="flex-1 p-4">
+        <div className="h-[calc(100vh-32px)] w-full bg-gray-800 rounded-md animate-pulse"></div>
+      </div>
+    </div>
+  );
+}
+
+// Componente que usa useSearchParams dentro do Suspense
+function PipelineLayoutContent({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();

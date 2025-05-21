@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { StageColumn } from './StageColumn';
 import { Button } from '@/components/ui/button';
 import { PlusIcon } from 'lucide-react';
@@ -144,7 +144,29 @@ const getTagId = (tag: any): string => {
   return '';
 };
 
-export function PipelineBoard({
+// Componente principal que envolve o PipelineBoard com Suspense
+export function PipelineBoard(props: PipelineBoardProps) {
+  return (
+    <Suspense fallback={<CarregandoPipeline />}>
+      <PipelineBoardContent {...props} />
+    </Suspense>
+  );
+}
+
+// Componente de carregamento para o fallback do Suspense
+function CarregandoPipeline() {
+  return (
+    <div className="flex-1 p-4 flex items-center justify-center h-full">
+      <div className="text-center">
+        <Loader2 className="h-12 w-12 animate-spin text-blue-500 mx-auto mb-4" />
+        <p className="text-xl font-medium text-gray-400">Carregando pipeline...</p>
+      </div>
+    </div>
+  );
+}
+
+// Componente que contém a lógica e usa useSearchParams
+function PipelineBoardContent({
   originId,
   setOriginId,
   globalNewLead,
