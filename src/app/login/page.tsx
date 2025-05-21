@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, Suspense, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { signIn } from 'next-auth/react'
@@ -25,44 +25,83 @@ function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [debugInfo, setDebugInfo] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  // Função de login que é chamada diretamente no clique do botão, 
-  // não através do evento de submit do formulário
-  const handleLogin = async () => {
-    setError('');
-    setIsLoading(true);
+  // Verificar se estamos em produção ou desenvolvimento
+  useEffect(() => {
+    const host = window.location.host;
+    const isProd = host.includes('app.navibot.com.br');
+    console.log(`Ambiente: ${isProd ? 'Produção' : 'Desenvolvimento'}`);
+  }, []);
 
+  // Função de login com melhor tratamento de erros
+  const handleLogin = async () => {
     try {
-      safeLog('Login - Tentando autenticar com:', { email }, ['email']);
+      // Validação básica
+      if (!email || !password) {
+        setError('Email e senha são obrigatórios');
+        return;
+      }
+
+      setError('');
+      setDebugInfo('');
+      setIsLoading(true);
+
+      console.log('1. Iniciando tentativa de login');
       
+      // Registrar informação de debug no cliente
+      setDebugInfo(prev => prev + '1. Tentando login... ');
+
       const result = await signIn('credentials', {
         email,
         password,
         redirect: false
       });
-      
-      safeLog('Login - Resultado da autenticação:', result);
 
-      if (result?.error) {
-        if (result.error === 'CredentialsSignin') {
-          setError('Email ou senha incorretos');
-        } else {
-          setError('Erro de autenticação: ' + result.error);
-        }
+      console.log('2. Resposta do signIn:', result);
+      setDebugInfo(prev => prev + `2. Resposta: ${JSON.stringify(result)} `);
+      
+      if (!result) {
+        console.error('Resultado do signIn é nulo ou indefinido');
+        setError('Erro de autenticação: resposta vazia do servidor');
+        setDebugInfo(prev => prev + '3. Erro: Resposta vazia ');
         setIsLoading(false);
         return;
       }
 
-      safeLog('Login bem-sucedido, redirecionando...', { email }, ['email']);
-      router.replace('/admin');
+      if (result.error) {
+        console.error('Erro ao fazer login:', result.error);
+        
+        if (result.error === 'CredentialsSignin') {
+          setError('Email ou senha incorretos');
+        } else {
+          setError(`Erro de autenticação: ${result.error}`);
+        }
+        
+        setDebugInfo(prev => prev + `3. Erro: ${result.error} `);
+        setIsLoading(false);
+        return;
+      }
+
+      console.log('3. Login bem-sucedido, redirecionando...');
+      setDebugInfo(prev => prev + '3. Sucesso! Redirecionando... ');
+      
+      // Adicionar um pequeno atraso antes do redirecionamento
+      setTimeout(() => {
+        router.replace('/admin');
+      }, 500);
+      
     } catch (error) {
-      console.error('Login - Erro durante autenticação:', error);
-      setError('Ocorreu um erro ao fazer login. Tente novamente mais tarde.');
+      // Capturar e registrar qualquer erro durante o processo
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      console.error('4. Exceção durante autenticação:', error);
+      setError(`Ocorreu um erro ao fazer login: ${errorMessage}`);
+      setDebugInfo(prev => prev + `4. Exceção: ${errorMessage} `);
       setIsLoading(false);
     }
-  }
+  };
 
   // Manipulador para o evento onKeyDown para detectar Enter
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -126,6 +165,12 @@ function LoginForm() {
           {error && (
             <div className="text-red-500 text-sm text-center bg-red-900/20 p-2 rounded-md border border-red-900/50">
               {error}
+            </div>
+          )}
+
+          {debugInfo && (
+            <div className="text-yellow-500 text-xs text-center bg-yellow-900/20 p-2 rounded-md border border-yellow-900/50 break-words">
+              <strong>Debug:</strong> {debugInfo}
             </div>
           )}
 
