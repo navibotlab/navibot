@@ -9,11 +9,12 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 
+// Componente principal que não usa hooks que precisam de Suspense
 export default function AceitarConvitePage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <Suspense fallback={<CarregandoConvite />}>
-        <AceitarConviteForm />
+        <AceitarConviteFormWrapper />
       </Suspense>
     </div>
   );
@@ -36,35 +37,42 @@ function CarregandoConvite() {
   );
 }
 
-function AceitarConviteForm() {
-  const router = useRouter();
+// Componente wrapper que usa useSearchParams dentro do Suspense
+function AceitarConviteFormWrapper() {
+  // O hook useSearchParams está dentro deste componente que já está envolvido pelo Suspense no componente pai
   const searchParams = useSearchParams();
+  const token = searchParams?.get('token') || null;
+  const email = searchParams?.get('email') || null;
+  
+  // Agora passamos esses parâmetros para o componente que realmente processa os dados
+  return <AceitarConviteForm token={token} email={email} />;
+}
+
+// Componente principal que não usa useSearchParams diretamente
+function AceitarConviteForm({ token, email }: { token: string | null, email: string | null }) {
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [status, setStatus] = useState<'pending' | 'verifying' | 'verified' | 'error'>('pending');
   const [formData, setFormData] = useState({
-    email: '',
-    token: '',
+    email: email || '',
+    token: token || '',
     password: '',
     confirmPassword: '',
   });
   const [tokenIsValid, setTokenIsValid] = useState(false);
 
-  // Recuperar token e email da URL
+  // Recuperar token e email e validar
   useEffect(() => {
-    const token = searchParams?.get('token');
-    const email = searchParams?.get('email');
-
     if (token && email) {
-      setFormData(prev => ({ ...prev, token, email }));
       setStatus('verifying');
       validateToken(token, email);
     } else {
       setError('Parâmetros de convite ausentes ou inválidos.');
       setStatus('error');
     }
-  }, [searchParams]);
+  }, [token, email]);
 
   // Função para verificar se o token é válido
   const validateToken = async (token: string, email: string) => {
