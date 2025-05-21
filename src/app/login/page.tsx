@@ -28,8 +28,9 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  // Função de login que é chamada diretamente no clique do botão, 
+  // não através do evento de submit do formulário
+  const handleLogin = async () => {
     setError('');
     setIsLoading(true);
 
@@ -63,6 +64,16 @@ function LoginForm() {
     }
   }
 
+  // Manipulador para o evento onKeyDown para detectar Enter
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault(); // Prevenir qualquer comportamento padrão
+      if (email && password) {
+        handleLogin();
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0F1115]">
       <div className="max-w-md w-full space-y-8 p-8 bg-[#1A1D24] rounded-lg shadow-lg border border-gray-800">
@@ -75,7 +86,7 @@ function LoginForm() {
           </p>
         </div>
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+        <div className="mt-8 space-y-6">
           <div className="space-y-4">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-400 mb-1">
@@ -83,13 +94,13 @@ function LoginForm() {
               </label>
               <input
                 id="email"
-                name="email"
                 type="email"
                 required
                 className="appearance-none relative block w-full px-3 py-2 border border-gray-700 rounded-md placeholder-gray-500 text-white bg-[#0F1115] focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
                 placeholder="seu@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={handleKeyDown}
                 disabled={isLoading}
               />
             </div>
@@ -100,13 +111,13 @@ function LoginForm() {
               </label>
               <input
                 id="password"
-                name="password"
                 type="password"
                 required
                 className="appearance-none relative block w-full px-3 py-2 border border-gray-700 rounded-md placeholder-gray-500 text-white bg-[#0F1115] focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
                 placeholder="Sua senha"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={handleKeyDown}
                 disabled={isLoading}
               />
             </div>
@@ -120,7 +131,8 @@ function LoginForm() {
 
           <div>
             <button
-              type="submit"
+              type="button" 
+              onClick={handleLogin}
               disabled={isLoading}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -137,7 +149,7 @@ function LoginForm() {
               )}
             </button>
           </div>
-        </form>
+        </div>
 
         <div className="text-center mt-4">
           <Link 
