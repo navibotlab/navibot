@@ -9,10 +9,16 @@ export default function DiagnosticoPublicoPage() {
   const [error, setError] = useState('');
   const [currentUrl, setCurrentUrl] = useState('');
   const [actionCompleted, setActionCompleted] = useState(false);
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
 
   useEffect(() => {
     // Capturar URL atual
     setCurrentUrl(window.location.href);
+
+    // Definir um timeout para tratar caso a API não responda
+    const timeoutId = setTimeout(() => {
+      setLoadingTimeout(true);
+    }, 5000); // 5 segundos
 
     async function fetchDiagnostico() {
       try {
@@ -23,13 +29,32 @@ export default function DiagnosticoPublicoPage() {
         const data = await response.json();
         setDiagnostico(data);
       } catch (err: any) {
+        console.error('Erro ao buscar diagnóstico:', err);
         setError(err.message || 'Erro ao carregar diagnóstico');
+        // Se falhar, criar objeto de diagnóstico com informações básicas
+        setDiagnostico({
+          ambiente: 'produção (estimado)',
+          nextauth_url: 'não disponível',
+          url_base: window.location.origin,
+          timestamp: new Date().toISOString(),
+          headers: {
+            host: window.location.host,
+            referer: document.referrer || 'não disponível',
+            'user-agent': navigator.userAgent
+          },
+          url: window.location.href
+        });
       } finally {
         setLoading(false);
+        clearTimeout(timeoutId);
       }
     }
     
     fetchDiagnostico();
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   // Função para limpar cookies de forma agressiva
@@ -77,7 +102,44 @@ export default function DiagnosticoPublicoPage() {
     window.location.href = '/login';
   };
 
-  if (loading) return <div className="p-6">Carregando dados de diagnóstico...</div>;
+  // Se demorar muito para carregar, mostrar opções para continuar mesmo assim
+  if (loading && loadingTimeout) {
+    return (
+      <div className="p-6 bg-gray-900 text-white min-h-screen">
+        <h1 className="text-2xl font-bold mb-4">Diagnóstico do Sistema</h1>
+        
+        <div className="bg-yellow-900/20 border border-yellow-600 p-4 rounded-md mb-6">
+          <h2 className="text-lg font-semibold text-yellow-400">⚠️ Carregamento lento</h2>
+          <p className="text-yellow-300 mb-4">Estamos tendo dificuldades para carregar os dados de diagnóstico. Você pode:</p>
+          
+          <div className="space-y-4">
+            <button 
+              onClick={limparCookies}
+              className="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-md mr-4"
+            >
+              Limpar Todos os Cookies
+            </button>
+            
+            <button 
+              onClick={acessoDireto}
+              className="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md"
+            >
+              Acessar Login Diretamente
+            </button>
+          </div>
+        </div>
+        
+        <div className="bg-gray-800/50 p-4 rounded-md">
+          <h2 className="text-xl font-semibold mb-2">URL Atual</h2>
+          <p className="text-red-300 overflow-auto break-all bg-gray-900 p-3 rounded-md">
+            {currentUrl}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) return <div className="p-6 bg-gray-900 text-white min-h-screen">Carregando dados de diagnóstico...</div>;
   
   return (
     <div className="p-6 bg-gray-900 text-white min-h-screen">
@@ -94,6 +156,7 @@ export default function DiagnosticoPublicoPage() {
         <div className="bg-red-900/20 border border-red-600 p-4 rounded-md mb-4">
           <h2 className="text-lg font-semibold text-red-400">Erro ao carregar dados:</h2>
           <p className="text-red-300">{error}</p>
+          <p className="text-white mt-2">Este erro não impede o uso das ferramentas de diagnóstico.</p>
         </div>
       )}
       
