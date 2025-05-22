@@ -91,6 +91,17 @@ export default function DiagnosticoStandalonePage() {
     }
   };
 
+  // Acesso direto ao dashboard admin
+  const acessoDashboard = () => {
+    try {
+      window.location.href = '/admin';
+    } catch (err) {
+      console.error('Erro ao redirecionar:', err);
+      // Tentar uma forma alternativa
+      document.location.href = '/admin';
+    }
+  };
+
   return (
     <div className="p-6 bg-gray-900 text-white min-h-screen">
       <h1 className="text-2xl font-bold mb-4">Diagnóstico Standalone</h1>
@@ -127,9 +138,16 @@ export default function DiagnosticoStandalonePage() {
           
           <button 
             onClick={acessoDireto}
-            className="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md"
+            className="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md mr-4"
           >
             Acessar Login Diretamente
+          </button>
+          
+          <button 
+            onClick={acessoDashboard}
+            className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md"
+          >
+            Acessar Dashboard Admin
           </button>
         </div>
       </div>

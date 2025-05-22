@@ -64,7 +64,7 @@ export default function Login() {
         redirect: false,
         email,
         password,
-        callbackUrl: '/admin' // Define o redirecionamento após o login bem-sucedido (sem usar origem)
+        callbackUrl: '/admin' // Define o redirecionamento após o login bem-sucedido
       });
       
       // Atualizar informações de debug
@@ -96,7 +96,9 @@ export default function Login() {
       }
       
       // Usar router para navegação do Next.js (sem parâmetros)
-      router.push('/admin');
+      // Garante que a URL seja limpa antes de redirecionar
+      const cleanUrl = '/admin'; // URL explícita para evitar problemas
+      router.push(cleanUrl);
       
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro desconhecido';

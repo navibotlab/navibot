@@ -46,16 +46,39 @@ export async function middleware(request: NextRequest) {
     // Log da rota atual para depuração
     console.log(`🔍 Middleware iniciando: ${pathname}`);
     
+    // Verificar se o usuário já está autenticado primeiro
+    const token = await getToken({ 
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET
+    });
+    
+    // IMPORTANTE: Se for um usuário autenticado tentando acessar a raiz, 
+    // redirecionar para o dashboard admin
+    if (token && (pathname === '/' || pathname === '')) {
+      console.log(`✅ Usuário autenticado acessando a raiz, redirecionando para dashboard`);
+      const adminUrl = new URL('/admin', request.url);
+      return NextResponse.redirect(adminUrl);
+    }
+
     // PROTEÇÃO CONTRA CREDENCIAIS NA URL (NOVO) - Verificação em todas as rotas antes de qualquer outro processamento
     const url = request.nextUrl;
     
     // Verificação mais rigorosa de credenciais na URL
-    if (url.searchParams.has('email') || url.searchParams.has('password')) {
+    // Não redirecionar para diagnostico-standalone se já estiver autenticado
+    if ((url.searchParams.has('email') || url.searchParams.has('password')) && !token) {
       console.log(`⚠️ ALERTA DE SEGURANÇA: Credenciais detectadas na URL: ${pathname}${url.search}`);
       
       // Redirecionar para a página de diagnóstico standalone que é independente de APIs
       const diagnosticoUrl = new URL('/diagnostico-standalone', request.url);
       return NextResponse.redirect(diagnosticoUrl);
+    }
+    
+    // Se usuário autenticado está tentando acessar login com credenciais na URL,
+    // redirecionar direto para dashboard admin em vez de diagnostico-standalone
+    if (token && pathname === '/login' && url.search.length > 0) {
+      console.log(`✅ Usuário autenticado tentando acessar login com parâmetros, redirecionando para dashboard`);
+      const adminUrl = new URL('/admin', request.url);
+      return NextResponse.redirect(adminUrl);
     }
     
     // Verificação específica para login com qualquer parâmetro de query
@@ -101,13 +124,6 @@ export async function middleware(request: NextRequest) {
     }
 
     // Para todas as outras rotas, verificar autenticação e workspace
-    const token = await getToken({ 
-      req: request,
-      secret: process.env.NEXTAUTH_SECRET
-    });
-    
-    secureLog('Verificando autenticação para:', { rota: pathname });
-    
     if (!token) {
       console.log(`🚫 Token não encontrado, redirecionando: ${pathname}`);
       // Se for uma rota da API, retorna erro 401

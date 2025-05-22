@@ -19,6 +19,14 @@ export default function AdminLayout({
     
     if (status === 'unauthenticated') {
       console.log('AdminLayout - Usuário não autenticado, redirecionando para login')
+      // Limpar cookies antes de redirecionar, para evitar loops
+      document.cookie.split(';').forEach(cookie => {
+        const trimmedCookie = cookie.trim()
+        const cookieName = trimmedCookie.split('=')[0]
+        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;`
+      })
+
+      // Usar replace em vez de push para evitar histórico
       router.replace('/login')
     }
     

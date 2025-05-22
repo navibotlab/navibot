@@ -196,6 +196,30 @@ const nextConfig = {
   // Implementação robusta de proteção contra vazamento de credenciais na URL
   async redirects() {
     return [
+      // Redirecionamento da raiz para admin quando autenticado
+      {
+        source: '/',
+        destination: '/admin',
+        has: [
+          {
+            type: 'cookie',
+            key: 'next-auth.session-token',
+          },
+        ],
+        permanent: false,
+      },
+      // Regra específica para redirecionar para o admin quando já estiver autenticado e tentar acessar login
+      {
+        source: '/login',
+        destination: '/admin',
+        has: [
+          {
+            type: 'cookie', 
+            key: 'next-auth.session-token',
+          },
+        ],
+        permanent: false,
+      },
       // Regra específica para qualquer página com email=
       {
         source: '/:path*',
