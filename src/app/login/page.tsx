@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { signIn } from 'next-auth/react'
+import { signIn, useSession } from 'next-auth/react'
 
 // Componente simplificado de login
 export default function Login() {
@@ -14,6 +14,7 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [environment, setEnvironment] = useState('');
   const router = useRouter();
+  const { status } = useSession(); // Adicionando useSession para verificar status da autenticação
 
   // Detectar ambiente ao carregar o componente
   useEffect(() => {
@@ -21,7 +22,13 @@ export default function Login() {
     const isProduction = host.includes('app.navibot.com.br');
     const isDevelopment = host.includes('localhost') || host.includes('127.0.0.1');
     setEnvironment(isProduction ? 'Produção' : (isDevelopment ? 'Desenvolvimento' : 'Desconhecido'));
-  }, []);
+    
+    // Se já estiver autenticado, redirecionar para o dashboard
+    if (status === 'authenticated') {
+      console.log('Usuário já autenticado, redirecionando para dashboard');
+      router.replace('/admin/dashboard');
+    }
+  }, [status, router]);
 
   // Função simplificada para login
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>) => {
@@ -59,12 +66,13 @@ export default function Login() {
         debugElement.className = 'text-xs p-2 bg-gray-900 text-green-400 rounded';
       }
       
-      // Tentar fazer login
+      // Tentar fazer login com redirect=true para deixar o NextAuth lidar com o redirecionamento
+      setDebugInfo(`${envInfo}. Iniciando autenticação com NextAuth...`);
       const result = await signIn('credentials', {
-        redirect: false,
+        redirect: false, // Manter como false para controlar o redirecionamento
         email,
         password,
-        callbackUrl: '/admin' // Define o redirecionamento após o login bem-sucedido
+        callbackUrl: '/admin/dashboard'
       });
       
       // Atualizar informações de debug
@@ -89,16 +97,17 @@ export default function Login() {
         return;
       }
       
-      // Sucesso - redirecionar
+      // Sucesso - aguardar um momento antes de redirecionar para garantir que os cookies sejam definidos
       setDebugInfo(`${envInfo}. Login bem-sucedido! Redirecionando...`);
       if (debugElement) {
         debugElement.innerText += '\nLogin bem-sucedido! Redirecionando...';
       }
       
-      // Usar router para navegação do Next.js (sem parâmetros)
-      // Garante que a URL seja limpa antes de redirecionar
-      const cleanUrl = '/admin'; // URL explícita para evitar problemas
-      router.push(cleanUrl);
+      // Aguardar um momento para garantir que o estado da sessão seja atualizado
+      setTimeout(() => {
+        // Limpar qualquer parâmetro de URL
+        window.location.href = '/admin/dashboard';
+      }, 1000);
       
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro desconhecido';

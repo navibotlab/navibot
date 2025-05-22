@@ -52,11 +52,18 @@ export async function middleware(request: NextRequest) {
       secret: process.env.NEXTAUTH_SECRET
     });
     
+    // Log detalhado do token para diagnóstico
+    console.log(`🔑 Token recebido no middleware:`, token ? 'Presente' : 'Ausente');
+    if (token) {
+      console.log(`🔑 Token sub:`, token.sub ? token.sub.substring(0, 5) + '***' : 'undefined');
+      console.log(`🔑 Token email:`, token.email ? token.email.substring(0, 3) + '***' : 'undefined');
+    }
+    
     // IMPORTANTE: Se for um usuário autenticado tentando acessar a raiz, 
     // redirecionar para o dashboard admin
     if (token && (pathname === '/' || pathname === '')) {
       console.log(`✅ Usuário autenticado acessando a raiz, redirecionando para dashboard`);
-      const adminUrl = new URL('/admin', request.url);
+      const adminUrl = new URL('/admin/dashboard', request.url);
       return NextResponse.redirect(adminUrl);
     }
 
@@ -65,7 +72,10 @@ export async function middleware(request: NextRequest) {
     
     // Verificação mais rigorosa de credenciais na URL
     // Não redirecionar para diagnostico-standalone se já estiver autenticado
-    if ((url.searchParams.has('email') || url.searchParams.has('password')) && !token) {
+    // E não redirecionar se for a página de verificar-email com o parâmetro email
+    if ((url.searchParams.has('email') || url.searchParams.has('password')) && 
+        !token && 
+        pathname !== '/verificar-email') {
       console.log(`⚠️ ALERTA DE SEGURANÇA: Credenciais detectadas na URL: ${pathname}${url.search}`);
       
       // Redirecionar para a página de diagnóstico standalone que é independente de APIs
@@ -77,7 +87,7 @@ export async function middleware(request: NextRequest) {
     // redirecionar direto para dashboard admin em vez de diagnostico-standalone
     if (token && pathname === '/login' && url.search.length > 0) {
       console.log(`✅ Usuário autenticado tentando acessar login com parâmetros, redirecionando para dashboard`);
-      const adminUrl = new URL('/admin', request.url);
+      const adminUrl = new URL('/admin/dashboard', request.url);
       return NextResponse.redirect(adminUrl);
     }
     
@@ -90,6 +100,18 @@ export async function middleware(request: NextRequest) {
       // Redirecionar para a página de login limpa
       const loginUrl = new URL('/login', request.url);
       return NextResponse.redirect(loginUrl);
+    }
+    
+    // ANTI-LOOP: Se detectar muitos redirecionamentos consecutivos, permitir a página
+    const antiLoopCookie = request.cookies.get('anti_loop');
+    const currentCount = antiLoopCookie ? parseInt(antiLoopCookie.value) : 0;
+    
+    // Se houver mais de 3 redirecionamentos em sequência rápida, permitir o acesso à página
+    if (currentCount > 3 && pathname.startsWith('/admin')) {
+      console.log(`🛑 Anti-loop ativado: ${currentCount} redirecionamentos detectados para ${pathname}`);
+      const response = NextResponse.next();
+      response.cookies.set('anti_loop', '0', { maxAge: 0 });
+      return response;
     }
     
     // Pular middleware para rotas públicas e estáticas
@@ -126,52 +148,48 @@ export async function middleware(request: NextRequest) {
     // Para todas as outras rotas, verificar autenticação e workspace
     if (!token) {
       console.log(`🚫 Token não encontrado, redirecionando: ${pathname}`);
+      
+      // Incrementar contador anti-loop
+      const response = NextResponse.redirect(new URL('/login', request.url));
+      response.cookies.set('anti_loop', (currentCount + 1).toString(), { maxAge: 10 });
+      
       // Se for uma rota da API, retorna erro 401
       if (pathname.startsWith('/api/')) {
         return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
       }
+      
       // Se for uma rota de página, redireciona para login
-      const loginUrl = new URL('/login', request.url);
-      return NextResponse.redirect(loginUrl);
+      return response;
     } else {
       console.log(`✅ Usuário autenticado: ${pathname}`);
+      // Resetar contador anti-loop
+      const response = NextResponse.next({
+        request: {
+          headers: new Headers(request.headers),
+        },
+      });
+      response.cookies.set('anti_loop', '0', { maxAge: 0 });
+      
       secureLog('Usuário autenticado', { 
         sub: token.sub,
         email: token.email,
         id: token.id,
         workspaceId: token.workspaceId
       });
+      
+      // Adicionar workspaceId ao cabeçalho da requisição
+      const requestHeaders = new Headers(request.headers);
+      requestHeaders.set('x-workspace-id', token.workspaceId as string);
+      requestHeaders.set('x-user-id', token.sub as string);
+      
+      console.log(`➡️ Middleware concluído com sucesso: ${pathname}`);
+      // Retornar a requisição modificada
+      return NextResponse.next({
+        request: {
+          headers: requestHeaders,
+        },
+      });
     }
-
-    // Buscar usuário e workspace
-    const userId = token.sub;
-    if (!userId) {
-      secureLog('ID do usuário não encontrado no token');
-      return NextResponse.json({ error: 'ID do usuário não encontrado' }, { status: 401 });
-    }
-
-    // Adicionar workspaceId ao cabeçalho da requisição
-    const requestHeaders = new Headers(request.headers);
-    requestHeaders.set('x-workspace-id', token.workspaceId as string);
-    requestHeaders.set('x-user-id', userId);
-    
-    // Log para debug
-    console.log('Token workspaceId:', token.workspaceId);
-    console.log('Token userId:', userId);
-    
-    // Corrigindo vazamento de dados sensíveis
-    secureLog('Adicionando headers para a requisição', { 
-      userId: userId, // Será mascarado pela função secureLog que já trata 'id'
-      workspaceId: token.workspaceId 
-    });
-
-    console.log(`➡️ Middleware concluído: ${pathname}`);
-    // Retornar a requisição modificada
-    return NextResponse.next({
-      request: {
-        headers: requestHeaders,
-      },
-    });
   } catch (error) {
     console.error('Erro no middleware:', error);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });

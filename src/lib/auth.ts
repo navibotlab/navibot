@@ -101,6 +101,24 @@ export const authOptions: NextAuthOptions = {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 30 * 24 * 60 * 60 // 30 dias - explicitamente definido aqui também
+      }
+    },
+    callbackUrl: {
+      name: process.env.NODE_ENV === 'production' ? '__Secure-next-auth.callback-url' : 'next-auth.callback-url',
+      options: {
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production'
+      }
+    },
+    csrfToken: {
+      name: process.env.NODE_ENV === 'production' ? '__Secure-next-auth.csrf-token' : 'next-auth.csrf-token',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
         secure: process.env.NODE_ENV === 'production'
       }
     }
@@ -113,8 +131,8 @@ export const authOptions: NextAuthOptions = {
       console.warn('NextAuth Warning:', { code });
     },
     debug(code, metadata) {
-      // Desabilitando logs de debug para reduzir ruído no console
-      // safeLog('NextAuth Debug', { code, metadata });
+      // Habilitando logs de debug para diagnóstico
+      console.log('NextAuth Debug:', { code, metadata });
     }
   },
   events: {

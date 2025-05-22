@@ -14,11 +14,11 @@ export default function IndexPage() {
     // Verificar se existe um contador de redirecionamentos na sessão
     const redirectCount = parseInt(sessionStorage.getItem('redirectCount') || '0')
     
-    // Se já redirecionou mais de 3 vezes, enviar para diagnóstico
-    if (redirectCount > 3) {
+    // Se já redirecionou mais de 5 vezes (aumentado de 3 para 5), enviar para diagnóstico
+    if (redirectCount > 5) {
       console.log('Muitos redirecionamentos detectados, enviando para diagnóstico')
       sessionStorage.removeItem('redirectCount')
-      router.replace('/diagnostico-standalone')
+      router.replace('/admin/dashboard')
       return
     }
     
@@ -27,7 +27,7 @@ export default function IndexPage() {
     
     if (status === 'authenticated') {
       console.log('Usuário autenticado, redirecionando para admin')
-      router.replace('/admin')
+      router.replace('/admin/dashboard')
     } else if (status === 'unauthenticated') {
       console.log('Usuário não autenticado, redirecionando para login')
       router.replace('/login')
