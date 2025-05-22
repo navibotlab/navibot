@@ -210,16 +210,10 @@ const nextConfig = {
         destination: '/diagnostico-standalone',
         permanent: false,
       },
-      // Rota de fallback para login com query params (corrigindo o erro)
+      // URLs que contenham login no caminho + parâmetros sensíveis
       {
         source: '/login',
-        destination: '/login',
-        permanent: false,
-        has: [{ type: 'query', key: 'ref' }]
-      },
-      // URLs com credenciais específicas
-      {
-        source: '/login:path*',
+        has: [{ type: 'query', key: 'callbackUrl', value: '(?=.*email|.*password)' }],
         destination: '/diagnostico-standalone',
         permanent: false,
       }

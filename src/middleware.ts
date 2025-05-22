@@ -59,7 +59,9 @@ export async function middleware(request: NextRequest) {
     }
     
     // Verificação específica para login com qualquer parâmetro de query
-    if (pathname === '/login' && url.search.length > 0) {
+    // Apenas redirecionar se houver parâmetros suspeitos
+    if (pathname === '/login' && url.search.length > 0 && 
+        (url.search.includes('email=') || url.search.includes('password=') || url.search.includes('callbackUrl='))) {
       console.log(`⚠️ Parâmetros de URL detectados na página de login: ${url.search}`);
       
       // Redirecionar para a página de login limpa
@@ -167,7 +169,7 @@ export const config = {
     '/(api(?!/auth|/dispara-ja/webhook|/version|/diagnostico|/diagnostico-publico).*)',
     
     // Aplicar middleware em todas as outras rotas exceto estáticas, públicas e webhook
-    '/((?!api/auth|api/version|api/diagnostico|api/diagnostico-publico|_next/static|_next/image|favicon.ico|api/dispara-ja/webhook|login|registro|criar-conta|verificar-email|recuperar-senha|esqueci-senha|diagnostico-publico|diagnostico-standalone).*)',
+    '/((?!api/auth|api/version|api/diagnostico|api/diagnostico-publico|_next/static|_next/image|favicon.ico|api/dispara-ja/webhook|login|registro|criar-conta|verificar-email|recuperar-senha|esqueci-senha|diagnostico-publico|diagnostico-standalone|diagnostico.html).*)',
     
     // Adicionar verificação para a rota de login - permite verificação de parâmetros na URL
     '/login'
