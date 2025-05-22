@@ -240,7 +240,7 @@ export async function POST(request: NextRequest) {
     console.log('ID da origem criada:', newOrigin.id);
     console.log('createDefaultStages:', createDefaultStages);
     
-    // Criar estágios padrão para esta origem e associá-los em uma única transação
+    // Criar estágios padrão para esta origem e associá-los
     let stagesCreated = false;
     let stagesInfo = null;
     let createdStages: any[] = [];
@@ -261,207 +261,89 @@ export async function POST(request: NextRequest) {
           { name: 'Fechado', description: 'Negócios finalizados (ganhos ou perdidos)', color: '#2ecc71', order: 7 }
         ];
         
-        console.log('Iniciando criação de estágios em transação...');
+        console.log('Iniciando criação de estágios...');
         
-        // Usar transação para garantir consistência
-        const result = await prisma.$transaction(async (tx) => {
-          // Criar estágios um por um
+        // Etapa 1: Criar todos os estágios sem transação
+        try {
           for (const stageData of defaultStages) {
             // Incluir identificador da origem no ID do estágio para facilitar associação posterior
             const originPrefix = newOrigin.id.substring(0, 8);
             const stageId = `stage_${Date.now()}_${originPrefix}_${Math.random().toString(36).substring(2, 6)}`;
             console.log(`Criando estágio ${stageData.name} com ID ${stageId}...`);
             
-            try {
-              // Criar estágio sem verificar se já existe (permitir nomes repetidos)
-              const createdStage = await (tx as any).stages.create({
-                data: {
-                  id: stageId,
-                  ...stageData,
-                  workspaceId: user.workspaceId,
-                  updatedAt: new Date(),
-                  name: stageData.name
-                }
-              });
-              
-              console.log(`Estágio criado com sucesso: ${createdStage.id} - ${createdStage.name}`);
-              createdStages.push(createdStage);
-              
-              // Pequena pausa para garantir IDs únicos
-              await new Promise(resolve => setTimeout(resolve, 10));
-            } catch (stageCreateError) {
-              console.error(`Erro ao criar o estágio ${stageData.name}:`, stageCreateError);
-              throw stageCreateError;
-            }
+            // Criar estágio sem verificar se já existe (permitir nomes repetidos)
+            const createdStage = await (prisma as any).stages.create({
+              data: {
+                id: stageId,
+                ...stageData,
+                workspaceId: user.workspaceId,
+                updatedAt: new Date(),
+                name: stageData.name
+              }
+            });
+            
+            console.log(`Estágio criado com sucesso: ${createdStage.id} - ${createdStage.name}`);
+            createdStages.push(createdStage);
+            
+            // Pequena pausa para garantir IDs únicos
+            await new Promise(resolve => setTimeout(resolve, 10));
           }
           
           console.log(`Criados ${createdStages.length} estágios padrão com sucesso`);
+        } catch (stageCreateError) {
+          console.error(`Erro ao criar estágios:`, stageCreateError);
+          throw stageCreateError;
+        }
+        
+        // Etapa 2: Conectar cada estágio à origem separadamente
+        if (createdStages.length > 0) {
+          console.log('Tentando conectar estágios à origem usando o método connect do Prisma...');
           
-          // Conectar estágios à origem um por um, em vez de todos de uma vez
-          if (createdStages.length > 0) {
-            try {
-              // Verificar primeiro a estrutura correta da relação no banco de dados
-              console.log('Verificando as tabelas de relação disponíveis para origins e stages...');
-              
-              const relationTables = await (tx as any).$queryRaw<Array<{tablename: string}>>`
-                SELECT tablename FROM pg_tables 
-                WHERE tablename LIKE '%origin%stage%' OR tablename LIKE '%stage%origin%'
-              `;
-              
-              if (relationTables && relationTables.length > 0) {
-                console.log(`Tabelas de relação encontradas: ${relationTables.map((t: {tablename: string}) => t.tablename).join(', ')}`);
-              } else {
-                console.log('Nenhuma tabela de relação específica encontrada');
-              }
-              
-              // Determinar se a tabela stages tem um campo originId
-              const stageColumns = await (tx as any).$queryRaw<Array<{column_name: string; data_type: string}>>`
-                SELECT column_name, data_type
-                FROM information_schema.columns
-                WHERE table_name = 'stages'
-                AND column_name LIKE '%origin%'
-              `;
-              
-              console.log('Colunas relacionadas a origin na tabela stages:', stageColumns);
-              
-              // Estratégia 1: Se a tabela stages tem um campo originId, use-o diretamente
-              const originIdColumn = stageColumns.find((col: {column_name: string; data_type: string}) => 
-                col.column_name.toLowerCase().includes('origin') && 
-                col.column_name.toLowerCase() !== 'origins'
-              );
-              
-              if (originIdColumn) {
-                console.log(`Encontrada coluna ${originIdColumn.column_name} na tabela stages, atualizando estágios diretamente`);
-                
-                for (const stage of createdStages) {
-                  // Atualizar estágio para vincular diretamente à origem
-                  const columnName = originIdColumn.column_name;
-                  const updateData: any = {};
-                  updateData[columnName] = newOrigin.id;
-                  
-                  await (tx as any).stages.update({
-                    where: { id: stage.id },
-                    data: updateData
-                  });
-                  
-                  console.log(`Estágio ${stage.id} atualizado com ${columnName}=${newOrigin.id}`);
-                }
-              } 
-              // Estratégia 2: Se existe uma tabela de junção explícita no Prisma (_OriginToStage, etc.)
-              else if (relationTables && relationTables.length > 0) {
-                // Usar a primeira tabela de relação encontrada
-                const relationTable = relationTables[0].tablename;
-                console.log(`Usando tabela de relação ${relationTable} para conectar estágios à origem`);
-                
-                // Determinar os nomes das colunas na tabela de relação
-                const relationColumns = await (tx as any).$queryRaw<Array<{column_name: string}>>`
-                  SELECT column_name FROM information_schema.columns
-                  WHERE table_name = ${relationTable}
-                  ORDER BY ordinal_position
-                `;
-                
-                if (relationColumns && relationColumns.length >= 2) {
-                  // Normalmente as tabelas de junção Prisma têm colunas A e B
-                  const columns = relationColumns.map((col: {column_name: string}) => col.column_name);
-                  console.log(`Colunas na tabela de relação: ${columns.join(', ')}`);
-                  
-                  // Assumir que a primeira coluna é para a Origem (A) e a segunda para o Estágio (B)
-                  const originColumn = columns[0];
-                  const stageColumn = columns[1];
-                  
-                  // Inserir os relacionamentos na tabela de junção
-                  for (const stage of createdStages) {
-                    try {
-                      await (tx as any).$executeRaw`
-                        INSERT INTO "${relationTable}" ("${originColumn}", "${stageColumn}") 
-                        VALUES (${newOrigin.id}, ${stage.id})
-                        ON CONFLICT DO NOTHING
-                      `;
-                      console.log(`Relação criada na tabela ${relationTable} entre origem ${newOrigin.id} e estágio ${stage.id}`);
-                    } catch (insertError) {
-                      console.error(`Erro ao inserir na tabela ${relationTable}:`, insertError);
-                    }
-                  }
-                }
-              }
-              // Estratégia 3: Tentar usar o método connect do Prisma como último recurso
-              else {
-                console.log('Tentando conectar estágios à origem usando o método connect do Prisma...');
-                
-                // Verificar se o modelo origins aceita o campo stages
-                try {
-                  let connectedCount = 0;
-                  
-                  for (const stage of createdStages) {
-                    // No Prisma, precisamos fazer um por um
-                    await (tx as any).origins.update({
-                      where: { id: newOrigin.id },
-                      data: { 
-                        stages: { 
-                          connect: { id: stage.id } 
-                        } 
-                      }
-                    });
-                    console.log(`Estágio ${stage.id} conectado à origem ${newOrigin.id}`);
-                    connectedCount++;
-                  }
-                  
-                  console.log(`Conectados ${connectedCount} estágios à origem ${newOrigin.id}`);
-                } catch (connectError) {
-                  console.error('Erro ao usar método connect do Prisma:', connectError);
-                  
-                  // Se falhar a conexão via Prisma, usamos a abordagem de ID composto como último recurso
-                  console.log('Usando a abordagem de ID composto como último recurso...');
-                  
-                  // Estamos usando o ID da origem no ID do estágio, então será possível filtrar depois
-                  console.log(`${createdStages.length} estágios criados com prefixo do ID da origem incorporado`);
-                  console.log(`Prefixo do ID da origem (${newOrigin.id.substring(0, 8)}) já está nos IDs dos estágios para filtragem`);
-                }
-              }
-            } catch (error) {
-              console.error('Erro ao estabelecer relacionamento entre origem e estágios:', error);
-              console.log('Usando abordagem de fallback para garantir associação: prefixo no ID');
-            }
-          }
+          let connectedCount = 0;
           
-          // Se há estágios criados, atualizar a origem para ter o primeiro estágio como padrão
-          if (createdStages.length > 0) {
-            console.log(`Configurando o estágio ${createdStages[0].id} como padrão para a origem ${newOrigin.id}...`);
-            
-            // Atualizar a origem com o estágio padrão
+          for (const stage of createdStages) {
             try {
-              const updatedOrigin = await (tx as any).origins.update({
-                where: {
-                  id: newOrigin.id
-                },
-                data: {
-                  defaultStageId: createdStages[0].id
+              // Conectar cada estágio individualmente
+              await (prisma as any).origins.update({
+                where: { id: newOrigin.id },
+                data: { 
+                  stages: { 
+                    connect: { id: stage.id } 
+                  } 
                 }
               });
-              
-              console.log(`Origem ${newOrigin.id} atualizada com estágio padrão: ${createdStages[0].id}`);
-              console.log(`Valor atual de defaultStageId: ${updatedOrigin.defaultStageId}`);
-              
-              // Remover criação de lead inicial
-              return { 
-                updatedOrigin, 
-                stages: createdStages
-              };
-            } catch (updateError) {
-              console.error(`Erro ao atualizar a origem com o estágio padrão:`, updateError);
-              
-              // Retornar mesmo com erro para não quebrar todo o processo
-              return {
-                stages: createdStages,
-                error: 'Não foi possível definir o estágio padrão, mas os estágios foram criados'
-              };
+              console.log(`Estágio ${stage.id} conectado à origem ${newOrigin.id}`);
+              connectedCount++;
+            } catch (connectError) {
+              console.error(`Erro ao conectar estágio ${stage.id} à origem:`, connectError);
+              // Continuar com os próximos estágios mesmo se houver erro
             }
           }
           
-          return { stages: createdStages };
-        });
+          console.log(`Conectados ${connectedCount} estágios à origem ${newOrigin.id}`);
+        }
         
-        console.log('Resultado da transação:', result);
+        // Etapa 3: Configurar o estágio padrão (primeiro estágio)
+        if (createdStages.length > 0) {
+          console.log(`Configurando o estágio ${createdStages[0].id} como padrão para a origem ${newOrigin.id}...`);
+          
+          try {
+            const updatedOrigin = await (prisma as any).origins.update({
+              where: {
+                id: newOrigin.id
+              },
+              data: {
+                defaultStageId: createdStages[0].id
+              }
+            });
+            
+            console.log(`Origem ${newOrigin.id} atualizada com estágio padrão: ${createdStages[0].id}`);
+            console.log(`Valor atual de defaultStageId: ${updatedOrigin.defaultStageId}`);
+          } catch (updateError) {
+            console.error(`Erro ao atualizar a origem com o estágio padrão:`, updateError);
+            // Não falhar completamente se não conseguir definir o estágio padrão
+          }
+        }
         
         stagesCreated = true;
         stagesInfo = {
@@ -722,10 +604,58 @@ export async function DELETE(request: NextRequest) {
       }, { status: 409 });
     }
     
-    // Excluir a origem
-    await (prisma as any).origins.delete({
-      where: { id: originId }
+    // Buscar todos os estágios vinculados à origem
+    console.log(`Buscando estágios vinculados à origem: ${originId}`);
+    
+    // Procurar os estágios de duas formas:
+    // 1. Verificar se estão diretamente relacionados pela relação stages
+    // 2. Buscar por estágios que têm o ID da origem embutido no ID do estágio
+    
+    // Obter os estágios da relação direta
+    const relatedStages = await (prisma as any).stages.findMany({
+      where: {
+        OR: [
+          // Relação direta através de tabela de junção 
+          { origins: { some: { id: originId } } },
+          // Ou pelo ID embutido (usando a estratégia de prefixo que implementamos)
+          { id: { contains: originId.substring(0, 8) } }
+        ],
+        workspaceId: user.workspaceId
+      }
     });
+    
+    console.log(`Encontrados ${relatedStages.length} estágios vinculados à origem ${originId}`);
+    
+    // Excluir os estágios e a origem em uma transação
+    await prisma.$transaction(async (tx) => {
+      console.log(`Iniciando transação para excluir ${relatedStages.length} estágios e a origem ${originId}...`);
+      
+      // Excluir cada estágio individualmente
+      for (const stage of relatedStages) {
+        console.log(`Excluindo estágio: ${stage.id} - ${stage.name}`);
+        
+        try {
+          await (tx as any).stages.delete({
+            where: { id: stage.id }
+          });
+        } catch (stageDeleteError) {
+          console.error(`Erro ao excluir estágio ${stage.id}:`, stageDeleteError);
+          // Continuar excluindo os outros estágios mesmo que falhe
+        }
+      }
+      
+      // Excluir a origem
+      console.log(`Excluindo origem: ${originId}`);
+      await (tx as any).origins.delete({
+        where: { id: originId }
+      });
+      
+      console.log(`Transação concluída com sucesso.`);
+    }, {
+      timeout: 10000 // Timeout de 10 segundos, abaixo do limite de 15 segundos do Prisma Accelerate
+    });
+    
+    console.log(`Origem ${originId} e seus estágios excluídos com sucesso.`);
     
     // Revalidar caminhos relacionados
     revalidatePath('/crm/pipeline');
