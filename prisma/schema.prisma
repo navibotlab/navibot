@@ -105,8 +105,8 @@ model contact_tags {
   created_at        DateTime            @default(now())
   updated_at        DateTime
   LeadToContactTags LeadToContactTags[]
-  leads             leads[]
   workspaces        workspaces          @relation(fields: [workspaceId], references: [id])
+  leads             leads[]             @relation("contact_tagsToleads")
 
   @@index([workspaceId])
 }
@@ -210,6 +210,7 @@ model leads {
   status             String?
   value              Decimal?             @db.Decimal(10, 2)
   originId           String?
+  business           business[]
   conversations      conversations[]
   lead_custom_fields lead_custom_fields[]
   origin_groups      origin_groups?       @relation(fields: [originGroupId], references: [id])
@@ -218,8 +219,7 @@ model leads {
   workspaces         workspaces           @relation(fields: [workspaceId], references: [id])
   notes              notes[]
   tasks              tasks[]
-  tags               contact_tags[]
-  business           business[]           // Relação inversa para negócios associados a este lead
+  tags               contact_tags[]       @relation("contact_tagsToleads")
 
   @@unique([phone, workspaceId])
   @@index([originGroupId])
@@ -290,11 +290,11 @@ model origins {
   workspaceId    String
   createdAt      DateTime      @default(now())
   updatedAt      DateTime
+  business       business[]
   leads          leads[]
   stages         stages?       @relation(fields: [defaultStageId], references: [id])
   origin_groups  origin_groups @relation(fields: [originGroupId], references: [id])
   workspaces     workspaces    @relation(fields: [workspaceId], references: [id])
-  business       business[]    // Relação inversa para negócios desta origem
 
   @@unique([name, workspaceId])
   @@index([defaultStageId])
@@ -339,7 +339,6 @@ model permission_groups {
   permission_group_items permission_group_items[]
   workspaces             workspaces               @relation(fields: [workspaceId], references: [id])
   users                  users[]
-  usersWithPG            users[]                  @relation("user_permissionGroup")
 
   @@unique([name, workspaceId])
   @@index([workspaceId])
@@ -391,13 +390,11 @@ model stages {
   workspaceId String
   createdAt   DateTime   @default(now())
   updatedAt   DateTime
+  business    business[]
   leads       leads[]
   origins     origins[]
   workspaces  workspaces @relation(fields: [workspaceId], references: [id])
-  business    business[] // Relação inversa para negócios neste estágio
 
-  // IMPORTANTE: A restrição de unicidade @@unique([name, workspaceId]) foi removida para permitir 
-  // estágios com o mesmo nome em um workspace, especialmente para estágios vinculados a diferentes origens
   @@index([workspaceId])
 }
 
@@ -491,16 +488,15 @@ model users {
   permissions                   Json?
   permissionGroupId             String?
   access_tokens                 access_tokens[]
+  ownedBusiness                 business[]            @relation("business_owner")
   notes                         notes[]
   tasks_tasks_assignedToTousers tasks[]               @relation("tasks_assignedToTousers")
   tasks_tasks_createdByTousers  tasks[]               @relation("tasks_createdByTousers")
   user_audit_logs               user_audit_logs[]
   permission_groups             permission_groups?    @relation(fields: [permissionGroupId], references: [id], map: "users_permission_groups_fkey")
-  permissionGroup               permission_groups?    @relation("user_permissionGroup", fields: [permissionGroupId], references: [id], map: "users_permissionGroup_fkey")
   plans                         plans?                @relation(fields: [planId], references: [id])
   workspaces                    workspaces            @relation(fields: [workspaceId], references: [id])
   verification_tokens           verification_tokens[]
-  ownedBusiness                 business[]            @relation("business_owner") // Relação inversa para negócios que o usuário é dono
 }
 
 model vector_stores {
@@ -551,6 +547,7 @@ model workspaces {
   createdAt                  DateTime                     @default(now())
   updatedAt                  DateTime
   agents                     agents[]
+  business                   business[]
   contact_fields             contact_fields[]
   contact_tags               contact_tags[]
   conversations              conversations[]
@@ -570,35 +567,30 @@ model workspaces {
   users                      users[]
   vector_stores              vector_stores[]
   whatsapp_cloud_connections whatsapp_cloud_connections[]
-  business                   business[]                   // Relação inversa para negócios nesta workspace
-
 }
 
 model business {
-  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  title            String    // Título ou nome do negócio
-  value            Decimal?  @db.Decimal(10, 2) // Valor do negócio
-  leadId           String    @db.Uuid // Lead associado a este negócio
-  stageId          String    // Estágio atual do negócio no pipeline
-  originId         String    // Origem do negócio
-  ownerId          String?   // Usuário responsável pelo negócio
-  status           String?   @default("active") // Status do negócio (active, won, lost, archived)
-  probability      Int?      @db.SmallInt // Probabilidade de fechamento (0-100)
-  closedAt         DateTime? // Data de fechamento do negócio
-  expectedCloseDate DateTime? // Data esperada de fechamento
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  workspaceId      String    // Workspace do negócio
-  customFields     Json?    // Campos customizados adicionais
-  
-  // Relações
-  lead        leads      @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  stage       stages     @relation(fields: [stageId], references: [id], onDelete: Restrict)
-  origin      origins    @relation(fields: [originId], references: [id], onDelete: Restrict)
-  owner       users?     @relation("business_owner", fields: [ownerId], references: [id], onDelete: SetNull)
-  workspace   workspaces @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  
-  // Índices para otimizar consultas
+  id                String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title             String
+  value             Decimal?   @db.Decimal(10, 2)
+  leadId            String     @db.Uuid
+  stageId           String
+  originId          String
+  ownerId           String?
+  status            String?    @default("active")
+  probability       Int?       @db.SmallInt
+  closedAt          DateTime?
+  expectedCloseDate DateTime?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  workspaceId       String
+  customFields      Json?
+  lead              leads      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  origin            origins    @relation(fields: [originId], references: [id])
+  owner             users?     @relation("business_owner", fields: [ownerId], references: [id])
+  stage             stages     @relation(fields: [stageId], references: [id])
+  workspace         workspaces @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
   @@index([leadId])
   @@index([stageId])
   @@index([originId])

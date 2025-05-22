@@ -37,21 +37,8 @@ export async function POST(req: Request) {
       )
     }
 
-    // Obter o plano gratuito
-    const freePlan = await prisma.plan.findFirst({
-      where: { 
-        price: 0,
-        // @ts-ignore - O campo isActive existe no modelo Plan mas não está definido no tipo PlanWhereInput
-        isActive: true 
-      }
-    })
-
-    if (!freePlan) {
-      return NextResponse.json(
-        { error: 'Plano gratuito não encontrado, entre em contato com o suporte' },
-        { status: 500 }
-      )
-    }
+    // Usar o ID do plano gratuito definido como constante
+    const freePlanId = DEFAULT_FREE_PLAN_ID
 
     // Hash da senha
     const hashedPassword = await bcrypt.hash(password, 10)
@@ -66,26 +53,27 @@ export async function POST(req: Request) {
     // Criar tudo em uma transação
     const result = await prisma.$transaction(async (tx) => {
       // 1. Criar o workspace
-      const workspace = await tx.workspace.create({
+      const workspace = await tx.workspaces.create({
         data: {
+          id: crypto.randomUUID(),
           name: workspaceName,
           subdomain: subdomain,
+          updatedAt: new Date()
         }
       })
 
       // 2. Criar o usuário
-      // Nota: O campo 'phone' não está definido no schema do Prisma.
-      // É necessário adicionar este campo ao schema antes de usá-lo.
       const userData = {
+        id: crypto.randomUUID(),
         name,
         email,
         password: hashedPassword,
         workspaceId: workspace.id,
-        // @ts-ignore - O campo planId existe no modelo users mas não está definido no tipo usersCreateInput
-        planId: freePlan.id,
+        planId: freePlanId,
         verifyToken,
         status: 'pending', // Pendente até a verificação do email
-        role: 'admin' // Admin do próprio workspace
+        role: 'admin', // Admin do próprio workspace
+        updatedAt: new Date()
       }
       
       // Armazenamos o telefone em uma variável para uso futuro
