@@ -31,10 +31,33 @@ export default function DashboardPage() {
   useEffect(() => {
     async function checkAuthentication() {
       try {
-        // Verificar autenticação usando a API direta
+        // Verificar autenticação usando a API de status
+        const statusResponse = await fetch('/api/auth/status', {
+          method: 'GET',
+          credentials: 'include',
+          cache: 'no-store' // Evitar cache
+        });
+        
+        if (!statusResponse.ok) {
+          console.error('Falha na verificação de status. Redirecionando para login...');
+          router.replace('/login');
+          return;
+        }
+        
+        const statusData = await statusResponse.json();
+        console.log('Status de autenticação:', statusData);
+        
+        if (!statusData.authenticated) {
+          console.error('Não autenticado de acordo com a API de status.');
+          router.replace('/login');
+          return;
+        }
+        
+        // Verificação adicional com a API de check
         const authResponse = await fetch('/api/auth/check', {
           method: 'GET',
-          credentials: 'include'
+          credentials: 'include',
+          cache: 'no-store' // Evitar cache
         });
         
         if (!authResponse.ok) {
@@ -42,6 +65,9 @@ export default function DashboardPage() {
           router.replace('/login');
           return;
         }
+        
+        const authData = await authResponse.json();
+        console.log('Resposta da verificação de autenticação:', authData);
         
         // Se o status da sessão NextAuth for unauthenticated, também redirecionar
         if (status === 'unauthenticated') {

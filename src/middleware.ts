@@ -48,6 +48,8 @@ function isPublicRoute(pathname: string): boolean {
     pathname === '/signout' ||
     pathname === '/logout' ||
     pathname === '/api/auth/signout' ||
+    pathname === '/api/auth/status' ||
+    pathname === '/api/auth/check' ||
     pathname === '/login' ||
     pathname === '/registro' ||
     pathname === '/criar-conta' ||
@@ -58,17 +60,17 @@ function isPublicRoute(pathname: string): boolean {
     pathname === '/aceitar-convite' ||
     pathname === '/teste' ||
     pathname === '/diagnostico-publico' ||
-    pathname === '/diagnostico-standalone' || // Adiciona diagnostico-standalone como rota pública
-    pathname === '/version.json' ||  // Permitir acesso direto ao arquivo de versão estático
-    pathname === '/api/version/index.json' || // Permitir acesso ao arquivo JSON de versão
+    pathname === '/diagnostico-standalone' ||
+    pathname === '/version.json' ||
+    pathname === '/api/version/index.json' ||
     pathname.startsWith('/api/diagnostico-publico') ||
     pathname.startsWith('/api/dispara-ja/webhook/') ||
     pathname.startsWith('/webhook/whatsapp-cloud') ||
     pathname === '/api/version' ||
     pathname.startsWith('/api/version') ||
     pathname.startsWith('/api/diagnostico') ||
-    pathname.startsWith('/images/') || // Permitir acesso a imagens públicas
-    pathname.includes('favicon'); // Permitir acesso a favicons
+    pathname.startsWith('/images/') ||
+    pathname.includes('favicon');
 }
 
 export async function middleware(request: NextRequest) {
