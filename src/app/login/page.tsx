@@ -66,10 +66,37 @@ export default function Login() {
         debugElement.className = 'text-xs p-2 bg-gray-900 text-green-400 rounded';
       }
       
-      // Tentar fazer login com redirect=true para deixar o NextAuth lidar com o redirecionamento
-      setDebugInfo(`${envInfo}. Iniciando autenticação com NextAuth...`);
+      // Limpar cookies existentes para evitar conflitos
+      document.cookie.split(';').forEach(cookie => {
+        const [name] = cookie.trim().split('=');
+        if (name && name.includes('next-auth')) {
+          document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;`;
+        }
+      });
+      
+      // Usar a API direta primeiro para garantir a autenticação
+      const loginResponse = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ 
+          email, 
+          password,
+          remember: true 
+        })
+      });
+      
+      if (!loginResponse.ok) {
+        const errorData = await loginResponse.json();
+        throw new Error(errorData.error || 'Erro de autenticação');
+      }
+      
+      const loginData = await loginResponse.json();
+      setDebugInfo(`${envInfo}. Login API bem-sucedido: ${JSON.stringify(loginData)}`);
+      
+      // Depois fazer o login via NextAuth para manter compatibilidade
       const result = await signIn('credentials', {
-        redirect: false, // Manter como false para controlar o redirecionamento
+        redirect: false,
         email,
         password,
         callbackUrl: '/admin/dashboard'
@@ -103,11 +130,8 @@ export default function Login() {
         debugElement.innerText += '\nLogin bem-sucedido! Redirecionando...';
       }
       
-      // Aguardar um momento para garantir que o estado da sessão seja atualizado
-      setTimeout(() => {
-        // Limpar qualquer parâmetro de URL
-        window.location.href = '/admin/dashboard';
-      }, 1000);
+      // Redirecionamento força refresh para garantir que os tokens sejam reconhecidos
+      window.location.href = '/admin/dashboard';
       
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro desconhecido';

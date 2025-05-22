@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
-import { MessageSquare, Bot, PhoneCall, Building, UserCheck } from 'lucide-react';
+import { MessageSquare, Bot, PhoneCall, Building } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 
@@ -25,18 +25,44 @@ export default function DashboardPage() {
     workspace: ''
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   // Verificar autenticação
   useEffect(() => {
-    // Se não estiver autenticado, redirecionar para login
-    if (status === 'unauthenticated') {
-      router.replace('/login');
+    async function checkAuthentication() {
+      try {
+        // Verificar autenticação usando a API direta
+        const authResponse = await fetch('/api/auth/check', {
+          method: 'GET',
+          credentials: 'include'
+        });
+        
+        if (!authResponse.ok) {
+          console.error('Falha na verificação de autenticação. Redirecionando para login...');
+          router.replace('/login');
+          return;
+        }
+        
+        // Se o status da sessão NextAuth for unauthenticated, também redirecionar
+        if (status === 'unauthenticated') {
+          console.error('NextAuth indica não autenticado. Redirecionando para login...');
+          router.replace('/login');
+          return;
+        }
+        
+        setIsCheckingAuth(false);
+      } catch (error) {
+        console.error('Erro ao verificar autenticação:', error);
+        router.replace('/login');
+      }
     }
+    
+    checkAuthentication();
   }, [status, router]);
 
   // Carregar dados do dashboard
   useEffect(() => {
-    if (status === 'authenticated') {
+    if (!isCheckingAuth && status === 'authenticated') {
       // Simulação de carregamento de dados do dashboard
       const loadDashboardData = () => {
         setTimeout(() => {
@@ -53,10 +79,10 @@ export default function DashboardPage() {
 
       loadDashboardData();
     }
-  }, [status, session]);
+  }, [isCheckingAuth, status, session]);
 
   // Mostrar um spinner enquanto carrega
-  if (status === 'loading' || isLoading) {
+  if (isCheckingAuth || status === 'loading' || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0F1115]">
         <div className="flex flex-col items-center">

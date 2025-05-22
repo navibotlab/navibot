@@ -136,6 +136,9 @@ export const authOptions: NextAuthOptions = {
     }
   },
   events: {
+    async signIn({ user, account, profile, isNewUser }) {
+      console.log('🔐 Evento de login ocorreu!', { userId: user.id });
+    },
     signOut: async (message) => {
       // Limpar cache quando fizer logout
       const email = message?.session?.user?.email;
@@ -145,7 +148,7 @@ export const authOptions: NextAuthOptions = {
       }
     },
   },
-  debug: false, // Desativando modo de depuração
+  debug: process.env.NODE_ENV !== 'production', // Ativar depuração em desenvolvimento
   providers: [
     CredentialsProvider({
       name: "Credentials",

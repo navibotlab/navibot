@@ -39,17 +39,56 @@ const secureLog = (message: string, data?: any) => {
   console.log(message, sanitizedData)
 }
 
+// Verificar se a rota está na lista de públicas
+function isPublicRoute(pathname: string): boolean {
+  return pathname.startsWith('/api/auth') || 
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/public') ||
+    pathname === '/favicon.ico' ||
+    pathname === '/signout' ||
+    pathname === '/logout' ||
+    pathname === '/api/auth/signout' ||
+    pathname === '/login' ||
+    pathname === '/registro' ||
+    pathname === '/criar-conta' ||
+    pathname === '/verificar-email' ||
+    pathname === '/esqueci-senha' ||
+    pathname === '/recuperar-senha' ||
+    pathname === '/teste-dom' ||
+    pathname === '/aceitar-convite' ||
+    pathname === '/teste' ||
+    pathname === '/diagnostico-publico' ||
+    pathname === '/diagnostico-standalone' || // Adiciona diagnostico-standalone como rota pública
+    pathname === '/version.json' ||  // Permitir acesso direto ao arquivo de versão estático
+    pathname === '/api/version/index.json' || // Permitir acesso ao arquivo JSON de versão
+    pathname.startsWith('/api/diagnostico-publico') ||
+    pathname.startsWith('/api/dispara-ja/webhook/') ||
+    pathname.startsWith('/webhook/whatsapp-cloud') ||
+    pathname === '/api/version' ||
+    pathname.startsWith('/api/version') ||
+    pathname.startsWith('/api/diagnostico') ||
+    pathname.startsWith('/images/') || // Permitir acesso a imagens públicas
+    pathname.includes('favicon'); // Permitir acesso a favicons
+}
+
 export async function middleware(request: NextRequest) {
   try {
     const pathname = request.nextUrl.pathname;
     
+    // Pular middleware para rotas públicas e estáticas
+    if (isPublicRoute(pathname)) {
+      console.log(`✅ Rota pública ou estática: ${pathname}, permitindo acesso`);
+      return NextResponse.next();
+    }
+
     // Log da rota atual para depuração
     console.log(`🔍 Middleware iniciando: ${pathname}`);
     
     // Verificar se o usuário já está autenticado primeiro
     const token = await getToken({ 
       req: request,
-      secret: process.env.NEXTAUTH_SECRET
+      secret: process.env.NEXTAUTH_SECRET,
+      secureCookie: process.env.NODE_ENV === 'production'
     });
     
     // Log detalhado do token para diagnóstico
@@ -67,7 +106,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(adminUrl);
     }
 
-    // PROTEÇÃO CONTRA CREDENCIAIS NA URL (NOVO) - Verificação em todas as rotas antes de qualquer outro processamento
+    // PROTEÇÃO CONTRA CREDENCIAIS NA URL - Verificação em todas as rotas antes de qualquer outro processamento
     const url = request.nextUrl;
     
     // Verificação mais rigorosa de credenciais na URL
@@ -109,40 +148,12 @@ export async function middleware(request: NextRequest) {
     // Se houver mais de 3 redirecionamentos em sequência rápida, permitir o acesso à página
     if (currentCount > 3 && pathname.startsWith('/admin')) {
       console.log(`🛑 Anti-loop ativado: ${currentCount} redirecionamentos detectados para ${pathname}`);
-      const response = NextResponse.next();
+      
+      // Encaminhar para login em vez de continuar o loop
+      const loginUrl = new URL('/login?error=auth_required', request.url);
+      const response = NextResponse.redirect(loginUrl);
       response.cookies.set('anti_loop', '0', { maxAge: 0 });
       return response;
-    }
-    
-    // Pular middleware para rotas públicas e estáticas
-    if (pathname.startsWith('/api/auth') || 
-        pathname.startsWith('/_next') ||
-        pathname.startsWith('/public') ||
-        pathname === '/favicon.ico' ||
-        pathname === '/signout' ||
-        pathname === '/logout' ||
-        pathname === '/api/auth/signout' ||
-        pathname === '/login' ||
-        pathname === '/registro' ||
-        pathname === '/criar-conta' ||
-        pathname === '/verificar-email' ||
-        pathname === '/esqueci-senha' ||
-        pathname === '/recuperar-senha' ||
-        pathname === '/teste-dom' ||
-        pathname === '/aceitar-convite' ||
-        pathname === '/teste' ||
-        pathname === '/diagnostico-publico' ||
-        pathname === '/diagnostico-standalone' || // Adiciona diagnostico-standalone como rota pública
-        pathname === '/version.json' ||  // Permitir acesso direto ao arquivo de versão estático
-        pathname === '/api/version/index.json' || // Permitir acesso ao arquivo JSON de versão
-        pathname.startsWith('/api/diagnostico-publico') ||
-        pathname.startsWith('/api/dispara-ja/webhook/') ||
-        pathname.startsWith('/webhook/whatsapp-cloud') ||
-        pathname === '/api/version' ||
-        pathname.startsWith('/api/version') ||
-        pathname.startsWith('/api/diagnostico')) {
-      console.log(`✅ Rota pública ou estática: ${pathname}, permitindo acesso`);
-      return NextResponse.next();
     }
 
     // Para todas as outras rotas, verificar autenticação e workspace
@@ -199,13 +210,7 @@ export async function middleware(request: NextRequest) {
 // Configurar em quais rotas o middleware será aplicado
 export const config = {
   matcher: [
-    // Aplicar middleware em todas as rotas da API exceto /api/auth, /api/version e webhooks
-    '/(api(?!/auth|/dispara-ja/webhook|/version|/diagnostico|/diagnostico-publico).*)',
-    
-    // Aplicar middleware em todas as outras rotas exceto estáticas, públicas e webhook
-    '/((?!api/auth|api/version|api/diagnostico|api/diagnostico-publico|_next/static|_next/image|favicon.ico|api/dispara-ja/webhook|login|registro|criar-conta|verificar-email|recuperar-senha|esqueci-senha|diagnostico-publico|diagnostico-standalone|diagnostico.html).*)',
-    
-    // Adicionar verificação para a rota de login - permite verificação de parâmetros na URL
-    '/login'
+    // Aplicar middleware em todas as rotas exceto arquivos estáticos
+    '/((?!_next/static|_next/image).*)',
   ]
 } 
