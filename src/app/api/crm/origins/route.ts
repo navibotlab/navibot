@@ -624,14 +624,82 @@ export async function DELETE(request: NextRequest) {
       }
     });
     
-    console.log(`Encontrados ${relatedStages.length} estágios vinculados à origem ${originId}`);
+    // Buscar também estágios relacionados pelo campo defaultStageId na tabela origins
+    const originWithStages = await (prisma as any).origins.findUnique({
+      where: { id: originId },
+      include: { 
+        stages: true 
+      }
+    });
+    
+    // Unir as duas listas de estágios, removendo duplicados
+    let allStages = [...relatedStages];
+    
+    if (originWithStages?.stages) {
+      // Adicionar estágios da relação que não estejam já na lista
+      originWithStages.stages.forEach((stage: any) => {
+        if (!allStages.some(s => s.id === stage.id)) {
+          allStages.push(stage);
+        }
+      });
+    }
+    
+    // Verificar se há um estágio padrão que não esteja na lista
+    if (originWithStages?.defaultStageId && !allStages.some(s => s.id === originWithStages.defaultStageId)) {
+      const defaultStage = await (prisma as any).stages.findUnique({
+        where: { id: originWithStages.defaultStageId }
+      });
+      
+      if (defaultStage) {
+        allStages.push(defaultStage);
+      }
+    }
+    
+    console.log(`Encontrados ${allStages.length} estágios vinculados à origem ${originId}`);
+    
+    // Extrair os IDs dos estágios para uso posterior
+    const stageIds = allStages.map(stage => stage.id);
     
     // Excluir os estágios e a origem em uma transação
     await prisma.$transaction(async (tx) => {
-      console.log(`Iniciando transação para excluir ${relatedStages.length} estágios e a origem ${originId}...`);
+      console.log(`Iniciando transação para excluir ${allStages.length} estágios e a origem ${originId}...`);
+      
+      // Primeiro remover a referência ao estágio padrão da origem
+      if (originWithStages?.defaultStageId) {
+        console.log(`Removendo referência ao estágio padrão (${originWithStages.defaultStageId}) da origem ${originId}`);
+        try {
+          await (tx as any).origins.update({
+            where: { id: originId },
+            data: { defaultStageId: null }
+          });
+        } catch (updateError) {
+          console.error(`Erro ao remover referência ao estágio padrão:`, updateError);
+        }
+      }
+      
+      // Verificar se há leads usando algum dos estágios e atualizá-los
+      const leadsUsingStages = await (tx as any).leads.findMany({
+        where: {
+          stageId: { in: stageIds },
+          workspaceId: user.workspaceId
+        }
+      });
+      
+      if (leadsUsingStages.length > 0) {
+        console.log(`Encontrados ${leadsUsingStages.length} leads usando os estágios que serão excluídos. Atualizando...`);
+        await (tx as any).leads.updateMany({
+          where: {
+            stageId: { in: stageIds },
+            workspaceId: user.workspaceId
+          },
+          data: {
+            stageId: null
+          }
+        });
+      }
       
       // Excluir cada estágio individualmente
-      for (const stage of relatedStages) {
+      for (const stage of allStages) {
         console.log(`Excluindo estágio: ${stage.id} - ${stage.name}`);
         
         try {

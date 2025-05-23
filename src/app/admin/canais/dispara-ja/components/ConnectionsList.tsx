@@ -92,7 +92,7 @@ export default function ConnectionsList({ connections, onEdit, onRefresh }: Conn
       return connectionStatuses[connection.unique];
     }
     // Se a conexão tem status 200 e message WhatsApp Information, está ativa
-    if (connection.status === 'active' || connection.status === 'ativo') {
+    if (connection.status === 'ativo') {
       return 'ativo';
     }
     // Caso contrário, está inativa
@@ -100,8 +100,8 @@ export default function ConnectionsList({ connections, onEdit, onRefresh }: Conn
   };
 
   // Formatar a data para exibição
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+  const formatDate = (dateInput: Date | string) => {
+    const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
     return new Intl.DateTimeFormat('pt-BR', {
       day: '2-digit',
       month: '2-digit',
