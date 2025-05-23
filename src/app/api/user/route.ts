@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Obter dados do corpo da requisição
-    const { name, email, role = "user" } = await request.json();
+    const { name, email, role = "user", permissionGroupId } = await request.json();
 
     // Validações básicas
     if (!name || !email) {
@@ -59,14 +59,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validar grupo de permissões se fornecido
+    let validPermissionGroupId = null;
+    if (permissionGroupId && permissionGroupId !== "default") {
+      const permissionGroup = await prisma.permission_groups.findFirst({
+        where: {
+          id: permissionGroupId,
+          workspaceId: currentUser.workspaceId
+        }
+      });
+      
+      if (!permissionGroup) {
+        return NextResponse.json(
+          { error: "Grupo de permissões não encontrado" },
+          { status: 400 }
+        );
+      }
+      
+      validPermissionGroupId = permissionGroupId;
+    }
+
     // Gerar senha temporária e token de verificação
     const tempPassword = generateStrongPassword();
     const hashedPassword = await hash(tempPassword, 10);
     const verifyToken = nanoid(32);
+    const userId = nanoid();
 
     // Criar o usuário
     const user = await prisma.users.create({
       data: {
+        id: userId,
         name,
         email,
         password: hashedPassword,
@@ -74,6 +96,8 @@ export async function POST(request: NextRequest) {
         workspaceId: currentUser.workspaceId,
         status: "pending",
         verifyToken,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
     });
 

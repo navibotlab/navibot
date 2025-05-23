@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, use } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Send, ArrowLeft, RotateCcw, Settings, User } from 'lucide-react';
+import { Send, ArrowLeft, Trash2, Settings, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 
@@ -178,7 +178,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
             className="text-gray-400 hover:text-[#0F1115] hover:bg-white transition-colors"
             title="Limpar conversa"
           >
-            <RotateCcw className="h-5 w-5" />
+            <Trash2 className="h-5 w-5" />
           </Button>
           <Button
             variant="ghost"

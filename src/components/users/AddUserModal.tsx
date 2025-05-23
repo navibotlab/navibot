@@ -50,7 +50,7 @@ export default function AddUserModal({ isOpen, onClose, onUserAdded }: AddUserMo
     name: '',
     email: '',
     role: 'user',
-    permissionGroupId: ''
+    permissionGroupId: 'default'
   });
   const [permissionGroups, setPermissionGroups] = useState<PermissionGroup[]>([]);
   const [createdUser, setCreatedUser] = useState<{
@@ -153,7 +153,7 @@ export default function AddUserModal({ isOpen, onClose, onUserAdded }: AddUserMo
       name: '',
       email: '',
       role: 'user',
-      permissionGroupId: ''
+      permissionGroupId: 'default'
     });
     setError('');
     setSuccess('');
@@ -304,7 +304,7 @@ export default function AddUserModal({ isOpen, onClose, onUserAdded }: AddUserMo
                       <SelectValue placeholder="Selecione um grupo de permissões" />
                     </SelectTrigger>
                     <SelectContent className="bg-[#1A1D24] border-gray-800 text-white">
-                      <SelectItem value="">Padrão (Baseado na função)</SelectItem>
+                      <SelectItem value="default">Padrão (Baseado na função)</SelectItem>
                       {permissionGroups.map(group => (
                         <SelectItem key={group.id} value={group.id}>
                           {group.name}
