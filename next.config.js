@@ -221,24 +221,14 @@ const nextConfig = {
         ],
         permanent: false,
       },
-      // Regra específica para qualquer página com email=
+      // REMOVIDO: Regras problemáticas que interceptavam o NextAuth
+      // Agora apenas redirecionamos páginas específicas se necessário
       {
-        source: '/:path*',
-        has: [{ type: 'query', key: 'email' }],
-        destination: '/diagnostico-standalone',
-        permanent: false,
-      },
-      // Regra específica para qualquer página com password=
-      {
-        source: '/:path*',
-        has: [{ type: 'query', key: 'password' }],
-        destination: '/diagnostico-standalone',
-        permanent: false,
-      },
-      // URLs que contenham login no caminho + parâmetros sensíveis
-      {
-        source: '/login',
-        has: [{ type: 'query', key: 'callbackUrl', value: '(?=.*email|.*password)' }],
+        source: '/diagnostico-publico',
+        has: [
+          { type: 'query', key: 'email' },
+          { type: 'query', key: 'password' }
+        ],
         destination: '/diagnostico-standalone',
         permanent: false,
       }
