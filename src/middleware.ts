@@ -77,6 +77,48 @@ export async function middleware(request: NextRequest) {
   try {
     const pathname = request.nextUrl.pathname;
     
+    // PROTEÇÃO CRÍTICA: Limpar credenciais na URL ANTES de qualquer processamento
+    const url = request.nextUrl;
+    if (url.searchParams.has('email') || url.searchParams.has('password')) {
+      console.log(`🚨 CREDENCIAIS NA URL DETECTADAS - REDIRECIONANDO: ${pathname}${url.search}`);
+      
+      // Extrair credenciais
+      const email = url.searchParams.get('email');
+      const password = url.searchParams.get('password');
+      
+      // Criar URL limpa
+      const cleanUrl = new URL(pathname, request.url);
+      
+      // Criar response de redirecionamento
+      const response = NextResponse.redirect(cleanUrl);
+      
+      // Salvar credenciais em cookies temporários para a página usar
+      if (email) {
+        response.cookies.set('temp_email', encodeURIComponent(email), { 
+          maxAge: 30, // 30 segundos apenas
+          httpOnly: false, // Permitir acesso via JS
+          path: '/'
+        });
+      }
+      if (password) {
+        response.cookies.set('temp_password', encodeURIComponent(password), { 
+          maxAge: 30, // 30 segundos apenas  
+          httpOnly: false, // Permitir acesso via JS
+          path: '/'
+        });
+      }
+      
+      // Adicionar flag para login automático
+      response.cookies.set('auto_login', 'true', { 
+        maxAge: 30,
+        httpOnly: false,
+        path: '/'
+      });
+      
+      console.log(`✅ Redirecionamento para URL limpa: ${cleanUrl.href}`);
+      return response;
+    }
+    
     // Pular middleware para rotas públicas e estáticas
     if (isPublicRoute(pathname)) {
       console.log(`✅ Rota pública ou estática: ${pathname}, permitindo acesso`);

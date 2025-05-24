@@ -23,23 +23,40 @@ export default function Login() {
     const isDevelopment = host.includes('localhost') || host.includes('127.0.0.1');
     setEnvironment(isProduction ? 'Produção' : (isDevelopment ? 'Desenvolvimento' : 'Desconhecido'));
     
-    // Verificar se há credenciais salvas no sessionStorage
-    const tempEmail = sessionStorage.getItem('temp_email');
-    const tempPassword = sessionStorage.getItem('temp_password');
+    // Função para obter valor de cookie
+    const getCookie = (name: string) => {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop()?.split(';').shift();
+      return null;
+    };
     
-    if (tempEmail && tempPassword) {
-      console.log('Credenciais encontradas no sessionStorage, preenchendo campos');
-      setEmail(tempEmail);
-      setPassword(tempPassword);
+    // Função para remover cookie
+    const deleteCookie = (name: string) => {
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
+    };
+    
+    // Verificar se há credenciais nos cookies (vindas do middleware)
+    const tempEmail = getCookie('temp_email');
+    const tempPassword = getCookie('temp_password');
+    const autoLogin = getCookie('auto_login');
+    
+    if (tempEmail && tempPassword && autoLogin === 'true') {
+      console.log('Credenciais encontradas nos cookies, fazendo login automático');
       
-      // Limpar sessionStorage
-      sessionStorage.removeItem('temp_email');
-      sessionStorage.removeItem('temp_password');
+      const decodedEmail = decodeURIComponent(tempEmail);
+      const decodedPassword = decodeURIComponent(tempPassword);
       
-      // Fazer login automático após um breve delay
-      setTimeout(() => {
-        handleAutoLogin(tempEmail, tempPassword);
-      }, 500);
+      setEmail(decodedEmail);
+      setPassword(decodedPassword);
+      
+      // Limpar cookies
+      deleteCookie('temp_email');
+      deleteCookie('temp_password');
+      deleteCookie('auto_login');
+      
+      // Fazer login automático imediatamente
+      handleAutoLogin(decodedEmail, decodedPassword);
     }
     
     // Se já estiver autenticado, redirecionar para o dashboard
@@ -101,16 +118,21 @@ export default function Login() {
         debugElement.className = 'text-xs p-2 bg-gray-900 text-green-400 rounded';
       }
       
-      // Usar NextAuth diretamente para autenticação
+      // NOVA ABORDAGEM: Usar signIn com método POST adequado
       const result = await signIn('credentials', {
-        redirect: false,
         email,
         password,
+        redirect: false, // Não redirecionar automaticamente
         callbackUrl: '/admin/dashboard'
       });
       
       // Atualizar informações de debug
-      const responseInfo = `Resposta: ${JSON.stringify(result)}`;
+      const responseInfo = `Resposta: ${JSON.stringify({
+        ok: result?.ok,
+        error: result?.error,
+        status: result?.status,
+        url: result?.url
+      })}`;
       setDebugInfo(`${envInfo}. ${responseInfo}`);
       if (debugElement) {
         debugElement.innerText += `\n${responseInfo}`;
@@ -131,14 +153,15 @@ export default function Login() {
         return;
       }
       
-      // Sucesso - usar router.push para redirecionamento
+      // Sucesso - forçar navegação para dashboard
       setDebugInfo(`${envInfo}. Login bem-sucedido! Redirecionando...`);
       if (debugElement) {
         debugElement.innerText += '\nLogin bem-sucedido! Redirecionando...';
+        debugElement.className = 'text-xs p-2 bg-gray-900 text-green-400 rounded';
       }
       
-      // Usar router.push que é mais confiável em Next.js
-      router.push('/admin/dashboard');
+      // Usar window.location.href para redirecionamento mais confiável
+      window.location.href = '/admin/dashboard';
       
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro desconhecido';
@@ -149,6 +172,7 @@ export default function Login() {
       const debugElement = document.getElementById('debug-output');
       if (debugElement) {
         debugElement.innerText += `\nExceção: ${message}`;
+        debugElement.className = 'text-xs p-2 bg-gray-900 text-red-400 rounded';
       }
     }
   };
