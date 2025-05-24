@@ -224,6 +224,22 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
+    async redirect({ url, baseUrl }) {
+      // Se for callback do login, sempre redirecionar para dashboard
+      if (url.includes('/api/auth/callback') || url === baseUrl || url === `${baseUrl}/`) {
+        return `${baseUrl}/admin/dashboard`;
+      }
+      // Se a URL é relativa, retornar baseada na baseUrl
+      if (url.startsWith('/')) {
+        return `${baseUrl}${url}`;
+      }
+      // Se a URL pertence ao mesmo host, permitir
+      if (new URL(url).origin === baseUrl) {
+        return url;
+      }
+      // Caso contrário, ir para dashboard
+      return `${baseUrl}/admin/dashboard`;
+    },
     async session({ session, token }) {
       // Usar safeLog para garantir mascaramento de dados sensíveis
       safeLog('NextAuth callback - session', { 

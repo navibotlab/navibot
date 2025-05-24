@@ -42,16 +42,6 @@ export default function Login() {
       const envInfo = `Ambiente: ${environment}`;
       setDebugInfo(`Iniciando login... ${envInfo}`);
       
-      // Verificar se há parâmetros na URL - se houver, limpar
-      if (window.location.search) {
-        const cleanUrl = window.location.origin + window.location.pathname;
-        window.history.replaceState({}, document.title, cleanUrl);
-        // Mostrar aviso de segurança
-        setError('Dados sensíveis foram removidos da URL por motivos de segurança');
-        setIsLoading(false);
-        return;
-      }
-      
       // Verificação básica
       if (!email || !password) {
         setError('Email e senha são obrigatórios');
@@ -66,35 +56,7 @@ export default function Login() {
         debugElement.className = 'text-xs p-2 bg-gray-900 text-green-400 rounded';
       }
       
-      // Limpar cookies existentes para evitar conflitos
-      document.cookie.split(';').forEach(cookie => {
-        const [name] = cookie.trim().split('=');
-        if (name && name.includes('next-auth')) {
-          document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;`;
-        }
-      });
-      
-      // Usar a API direta primeiro para garantir a autenticação
-      const loginResponse = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ 
-          email, 
-          password,
-          remember: true 
-        })
-      });
-      
-      if (!loginResponse.ok) {
-        const errorData = await loginResponse.json();
-        throw new Error(errorData.error || 'Erro de autenticação');
-      }
-      
-      const loginData = await loginResponse.json();
-      setDebugInfo(`${envInfo}. Login API bem-sucedido: ${JSON.stringify(loginData)}`);
-      
-      // Depois fazer o login via NextAuth para manter compatibilidade
+      // Usar NextAuth diretamente para autenticação
       const result = await signIn('credentials', {
         redirect: false,
         email,
@@ -124,14 +86,14 @@ export default function Login() {
         return;
       }
       
-      // Sucesso - aguardar um momento antes de redirecionar para garantir que os cookies sejam definidos
+      // Sucesso - usar router.push para redirecionamento
       setDebugInfo(`${envInfo}. Login bem-sucedido! Redirecionando...`);
       if (debugElement) {
         debugElement.innerText += '\nLogin bem-sucedido! Redirecionando...';
       }
       
-      // Redirecionamento força refresh para garantir que os tokens sejam reconhecidos
-      window.location.href = '/admin/dashboard';
+      // Usar router.push que é mais confiável em Next.js
+      router.push('/admin/dashboard');
       
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro desconhecido';
