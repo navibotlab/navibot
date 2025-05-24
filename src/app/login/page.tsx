@@ -104,6 +104,11 @@ export default function Login() {
       setError('');
       setDebugInfo('Iniciando debug de login...');
       
+      // Log detalhado para debug
+      const environment = window.location.host.includes('app.navibot.com.br') ? 'produção' : 'desenvolvimento';
+      console.warn(`🔬 DEBUG: Iniciando debug em ${environment}`);
+      console.warn(`🔬 DEBUG: URL da API: ${window.location.origin}/api/debug-login`);
+      
       const response = await fetch('/api/debug-login', {
         method: 'POST',
         headers: {
@@ -112,23 +117,38 @@ export default function Login() {
         body: JSON.stringify({ email, password })
       });
       
+      console.warn(`🔬 DEBUG: Response status: ${response.status}`);
+      console.warn(`🔬 DEBUG: Response ok: ${response.ok}`);
+      
+      if (!response.ok) {
+        console.error(`🔬 DEBUG: Response não ok. Status: ${response.status}`);
+        const errorText = await response.text();
+        console.error(`🔬 DEBUG: Error response text:`, errorText);
+        
+        setError(`Erro na API de debug: ${response.status} - ${errorText}`);
+        setDebugInfo(`Debug falhou: HTTP ${response.status}`);
+        return;
+      }
+      
       const debugData = await response.json();
       
-      console.log('Debug Login Response:', debugData);
+      console.warn(`🔬 DEBUG: Response data:`, debugData);
       
       const debugElement = document.getElementById('debug-output');
       if (debugElement) {
         debugElement.innerHTML = `
           <div class="text-xs space-y-1">
-            <div><strong>Ambiente:</strong> ${debugData.environment}</div>
-            <div><strong>Timestamp:</strong> ${debugData.timestamp}</div>
-            <div><strong>Passo:</strong> ${debugData.step}</div>
+            <div><strong>Ambiente:</strong> ${debugData.environment || 'undefined'}</div>
+            <div><strong>Vercel Env:</strong> ${debugData.vercel_env || 'undefined'}</div>
+            <div><strong>Timestamp:</strong> ${debugData.timestamp || 'undefined'}</div>
+            <div><strong>Passo:</strong> ${debugData.step || 'undefined'}</div>
             <div><strong>Sucesso:</strong> ${debugData.success ? '✅' : '❌'}</div>
             <div><strong>Conexão BD:</strong> ${debugData.dbConnection ? '✅' : '❌'}</div>
             <div><strong>Usuário Encontrado:</strong> ${debugData.userFound ? '✅' : '❌'}</div>
             <div><strong>Usuário Ativo:</strong> ${debugData.userActive ? '✅' : '❌'}</div>
             <div><strong>Senha Válida:</strong> ${debugData.passwordValid ? '✅' : '❌'}</div>
             <div><strong>NEXTAUTH_URL:</strong> ${debugData.env_vars?.nextauth_url || 'não definida'}</div>
+            <div><strong>DATABASE_URL:</strong> ${debugData.env_vars?.database_url_preview || 'não definida'}</div>
             ${debugData.error ? `<div class="text-red-400"><strong>Erro:</strong> ${debugData.error}</div>` : ''}
             ${debugData.user ? `<div class="text-green-400"><strong>Usuário:</strong> ${debugData.user.email} (${debugData.user.role})</div>` : ''}
           </div>
@@ -138,11 +158,27 @@ export default function Login() {
           : 'text-xs p-2 bg-gray-900 text-red-400 rounded';
       }
       
-      setDebugInfo(`Debug concluído: ${debugData.success ? 'SUCESSO' : 'FALHA'} - Passo: ${debugData.step}`);
+      setDebugInfo(`Debug concluído: ${debugData.success ? 'SUCESSO' : 'FALHA'} - Passo: ${debugData.step || 'undefined'}`);
       
     } catch (error) {
+      console.error(`🔬 DEBUG: Exceção capturada:`, error);
       setError(`Erro no debug: ${error}`);
       setDebugInfo(`Erro no debug: ${error}`);
+      
+      // Mostrar erro detalhado no debug output
+      const debugElement = document.getElementById('debug-output');
+      if (debugElement) {
+        debugElement.innerHTML = `
+          <div class="text-xs space-y-1 text-red-400">
+            <div><strong>Erro de Rede/Fetch:</strong></div>
+            <div>${error}</div>
+            <div><strong>Ambiente:</strong> ${environment}</div>
+            <div><strong>Timestamp:</strong> ${new Date().toISOString()}</div>
+            <div><strong>URL Base:</strong> ${window.location.origin}</div>
+          </div>
+        `;
+        debugElement.className = 'text-xs p-2 bg-gray-900 text-red-400 rounded';
+      }
     } finally {
       setIsLoading(false);
     }
@@ -344,6 +380,45 @@ export default function Login() {
             className="text-xs text-center w-full text-orange-400 hover:text-orange-300 bg-orange-900/20 p-2 rounded border border-orange-900/50 disabled:opacity-50"
           >
             🔬 Debug Completo de Login
+          </button>
+          
+          <button
+            type="button"
+            onClick={async () => {
+              console.warn('🧪 Testando API simples...');
+              try {
+                const response = await fetch('/api/debug-simple', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ email, password })
+                });
+                const data = await response.json();
+                console.warn('🧪 API simples response:', data);
+                
+                const debugElement = document.getElementById('debug-output');
+                if (debugElement) {
+                  debugElement.innerHTML = `
+                    <div class="text-xs space-y-1 text-blue-400">
+                      <div><strong>API Simples Teste:</strong></div>
+                      <div>Status: ${response.status}</div>
+                      <div>Funcionando: ${data.api_working ? '✅' : '❌'}</div>
+                      <div>Ambiente: ${data.environment}</div>
+                      <div>Vercel: ${data.vercel_env}</div>
+                      <div>DATABASE_URL: ${data.env_vars?.database_url_exists ? '✅' : '❌'}</div>
+                    </div>
+                  `;
+                  debugElement.className = 'text-xs p-2 bg-gray-900 text-blue-400 rounded';
+                }
+                setDebugInfo(`API Simples: ${data.api_working ? 'FUNCIONANDO' : 'FALHOU'}`);
+              } catch (error) {
+                console.error('🧪 Erro na API simples:', error);
+                setError(`Erro na API simples: ${error}`);
+              }
+            }}
+            disabled={isLoading}
+            className="text-xs text-center w-full text-blue-400 hover:text-blue-300 bg-blue-900/20 p-2 rounded border border-blue-900/50 disabled:opacity-50"
+          >
+            🧪 Testar API Simples
           </button>
           
           <button
