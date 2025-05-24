@@ -27,6 +27,43 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className="dark">
       <head>
+        {/* PROTEÇÃO CRÍTICA: Limpar credenciais IMEDIATAMENTE */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              // EXECUTAR IMEDIATAMENTE - ANTES DE QUALQUER COISA
+              (function() {
+                if (typeof window === 'undefined') return;
+                
+                // Verificar se há credenciais na URL
+                const url = new URL(window.location.href);
+                const hasCredentials = url.searchParams.has('email') || url.searchParams.has('password') || url.searchParams.has('token');
+                
+                if (hasCredentials) {
+                  console.warn('🚨 CREDENCIAIS DETECTADAS NA URL - LIMPANDO IMEDIATAMENTE');
+                  
+                  // Salvar credenciais temporariamente em sessionStorage para preenchimento automático
+                  const email = url.searchParams.get('email');
+                  const password = url.searchParams.get('password');
+                  
+                  if (email) {
+                    sessionStorage.setItem('temp_email', decodeURIComponent(email));
+                  }
+                  if (password) {
+                    sessionStorage.setItem('temp_password', decodeURIComponent(password));
+                  }
+                  
+                  // Limpar URL IMEDIATAMENTE
+                  const cleanUrl = url.origin + url.pathname;
+                  window.history.replaceState({}, document.title, cleanUrl);
+                  
+                  console.log('✅ URL limpa com sucesso');
+                }
+              })();
+            `
+          }}
+        />
+        
         {/* Script de proteção contra chunks problemáticos - posição crítica */}
         <script
           dangerouslySetInnerHTML={{

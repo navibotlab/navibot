@@ -23,30 +23,23 @@ export default function Login() {
     const isDevelopment = host.includes('localhost') || host.includes('127.0.0.1');
     setEnvironment(isProduction ? 'Produção' : (isDevelopment ? 'Desenvolvimento' : 'Desconhecido'));
     
-    // SEGURANÇA: Limpar credenciais da URL imediatamente
-    if (window.location.search) {
-      const urlParams = new URLSearchParams(window.location.search);
-      let hasCredentials = false;
+    // Verificar se há credenciais salvas no sessionStorage
+    const tempEmail = sessionStorage.getItem('temp_email');
+    const tempPassword = sessionStorage.getItem('temp_password');
+    
+    if (tempEmail && tempPassword) {
+      console.log('Credenciais encontradas no sessionStorage, preenchendo campos');
+      setEmail(tempEmail);
+      setPassword(tempPassword);
       
-      // Verificar se há credenciais na URL
-      if (urlParams.has('email') || urlParams.has('password')) {
-        hasCredentials = true;
-        
-        // Preencher campos se as credenciais estão na URL (mas limpar a URL)
-        const emailFromUrl = urlParams.get('email');
-        const passwordFromUrl = urlParams.get('password');
-        
-        if (emailFromUrl) setEmail(decodeURIComponent(emailFromUrl));
-        if (passwordFromUrl) setPassword(decodeURIComponent(passwordFromUrl));
-      }
+      // Limpar sessionStorage
+      sessionStorage.removeItem('temp_email');
+      sessionStorage.removeItem('temp_password');
       
-      // Limpar a URL de qualquer parâmetro
-      const cleanUrl = window.location.origin + window.location.pathname;
-      window.history.replaceState({}, document.title, cleanUrl);
-      
-      if (hasCredentials) {
-        setError('Por segurança, credenciais foram removidas da URL. Verifique se os dados estão corretos abaixo.');
-      }
+      // Fazer login automático após um breve delay
+      setTimeout(() => {
+        handleAutoLogin(tempEmail, tempPassword);
+      }, 500);
     }
     
     // Se já estiver autenticado, redirecionar para o dashboard
@@ -55,6 +48,32 @@ export default function Login() {
       router.replace('/admin/dashboard');
     }
   }, [status, router]);
+
+  // Função para login automático
+  const handleAutoLogin = async (emailParam: string, passwordParam: string) => {
+    try {
+      setIsLoading(true);
+      setDebugInfo('Fazendo login automático...');
+      
+      const result = await signIn('credentials', {
+        redirect: false,
+        email: emailParam,
+        password: passwordParam,
+        callbackUrl: '/admin/dashboard'
+      });
+      
+      if (result?.error) {
+        setError('Erro no login automático: ' + result.error);
+        setIsLoading(false);
+      } else if (result?.ok) {
+        setDebugInfo('Login automático bem-sucedido! Redirecionando...');
+        router.push('/admin/dashboard');
+      }
+    } catch (err) {
+      setError('Erro no login automático');
+      setIsLoading(false);
+    }
+  };
 
   // Função simplificada para login
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>) => {

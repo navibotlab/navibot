@@ -108,22 +108,6 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(adminUrl);
     }
 
-    // PROTEÇÃO CONTRA CREDENCIAIS NA URL - Versão simplificada
-    const url = request.nextUrl;
-    
-    // APENAS redirecionar para diagnóstico se NÃO for a página de login
-    // Deixar a página de login lidar com limpeza de credenciais
-    if ((url.searchParams.has('email') || url.searchParams.has('password')) && 
-        pathname !== '/login' && 
-        pathname !== '/verificar-email' &&
-        !token) {
-      console.log(`⚠️ ALERTA DE SEGURANÇA: Credenciais detectadas na URL: ${pathname}${url.search}`);
-      
-      // Redirecionar para a página de diagnóstico standalone
-      const diagnosticoUrl = new URL('/diagnostico-standalone', request.url);
-      return NextResponse.redirect(diagnosticoUrl);
-    }
-    
     // Se usuário autenticado está tentando acessar login, redirecionar para dashboard
     if (token && pathname === '/login') {
       console.log(`✅ Usuário autenticado tentando acessar login, redirecionando para dashboard`);
