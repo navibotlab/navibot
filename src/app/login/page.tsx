@@ -92,6 +92,62 @@ export default function Login() {
     }
   };
 
+  // Função para debug de login
+  const handleDebugLogin = async () => {
+    if (!email || !password) {
+      setError('Email e senha necessários para debug');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError('');
+      setDebugInfo('Iniciando debug de login...');
+      
+      const response = await fetch('/api/debug-login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password })
+      });
+      
+      const debugData = await response.json();
+      
+      console.log('Debug Login Response:', debugData);
+      
+      const debugElement = document.getElementById('debug-output');
+      if (debugElement) {
+        debugElement.innerHTML = `
+          <div class="text-xs space-y-1">
+            <div><strong>Ambiente:</strong> ${debugData.environment}</div>
+            <div><strong>Timestamp:</strong> ${debugData.timestamp}</div>
+            <div><strong>Passo:</strong> ${debugData.step}</div>
+            <div><strong>Sucesso:</strong> ${debugData.success ? '✅' : '❌'}</div>
+            <div><strong>Conexão BD:</strong> ${debugData.dbConnection ? '✅' : '❌'}</div>
+            <div><strong>Usuário Encontrado:</strong> ${debugData.userFound ? '✅' : '❌'}</div>
+            <div><strong>Usuário Ativo:</strong> ${debugData.userActive ? '✅' : '❌'}</div>
+            <div><strong>Senha Válida:</strong> ${debugData.passwordValid ? '✅' : '❌'}</div>
+            <div><strong>NEXTAUTH_URL:</strong> ${debugData.env_vars?.nextauth_url || 'não definida'}</div>
+            ${debugData.error ? `<div class="text-red-400"><strong>Erro:</strong> ${debugData.error}</div>` : ''}
+            ${debugData.user ? `<div class="text-green-400"><strong>Usuário:</strong> ${debugData.user.email} (${debugData.user.role})</div>` : ''}
+          </div>
+        `;
+        debugElement.className = debugData.success 
+          ? 'text-xs p-2 bg-gray-900 text-green-400 rounded' 
+          : 'text-xs p-2 bg-gray-900 text-red-400 rounded';
+      }
+      
+      setDebugInfo(`Debug concluído: ${debugData.success ? 'SUCESSO' : 'FALHA'} - Passo: ${debugData.step}`);
+      
+    } catch (error) {
+      setError(`Erro no debug: ${error}`);
+      setDebugInfo(`Erro no debug: ${error}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Função simplificada para login
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>) => {
     if (e) {
@@ -281,6 +337,15 @@ export default function Login() {
 
         {/* Botões alternativos e de diagnóstico */}
         <div className="pt-2 space-y-2">
+          <button
+            type="button"
+            onClick={handleDebugLogin}
+            disabled={isLoading}
+            className="text-xs text-center w-full text-orange-400 hover:text-orange-300 bg-orange-900/20 p-2 rounded border border-orange-900/50 disabled:opacity-50"
+          >
+            🔬 Debug Completo de Login
+          </button>
+          
           <button
             type="button"
             onClick={handleSubmit}
