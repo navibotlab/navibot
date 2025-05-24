@@ -30,8 +30,9 @@ const nextConfig = {
   generateEtags: true,
   productionBrowserSourceMaps: false,
 
-  // Alterar de 'standalone' para não especificar um output específico, permitindo o carregamento padrão de assets
-  output: process.env.NODE_ENV === 'production' ? 'standalone' : undefined,
+  // IMPORTANTE: Para Vercel, não usar 'standalone' output
+  // A Vercel tem seu próprio sistema de otimização
+  output: process.env.VERCEL ? undefined : (process.env.NODE_ENV === 'production' ? 'standalone' : undefined),
 
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
 
