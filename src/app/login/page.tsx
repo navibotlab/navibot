@@ -19,9 +19,14 @@ export default function Login() {
   // Detectar ambiente ao carregar o componente
   useEffect(() => {
     const host = window.location.host;
-    const isProduction = host.includes('app.navibot.com.br');
+    const isProduction = host.includes('app.navibot.com.br') || host.includes('vercel.app');
     const isDevelopment = host.includes('localhost') || host.includes('127.0.0.1');
     setEnvironment(isProduction ? 'Produção' : (isDevelopment ? 'Desenvolvimento' : 'Desconhecido'));
+    
+    // Log inicial para diagnóstico
+    console.warn(`🌍 AMBIENTE DETECTADO: ${isProduction ? 'PRODUÇÃO' : (isDevelopment ? 'DESENVOLVIMENTO' : 'DESCONHECIDO')}`);
+    console.warn(`🌍 HOST: ${host}`);
+    console.warn(`🌍 URL COMPLETA: ${window.location.href}`);
     
     // Função para obter valor de cookie
     const getCookie = (name: string) => {
@@ -419,6 +424,80 @@ export default function Login() {
             className="text-xs text-center w-full text-blue-400 hover:text-blue-300 bg-blue-900/20 p-2 rounded border border-blue-900/50 disabled:opacity-50"
           >
             🧪 Testar API Simples
+          </button>
+          
+          <button
+            type="button"
+            onClick={async () => {
+              console.warn('🔍 DIAGNÓSTICO BÁSICO INICIADO');
+              const debugElement = document.getElementById('debug-output');
+              
+              try {
+                // Informações básicas do ambiente
+                const envInfo = {
+                  host: window.location.host,
+                  url: window.location.href,
+                  userAgent: navigator.userAgent.substring(0, 50) + '...',
+                  cookiesEnabled: navigator.cookieEnabled,
+                  localStorage: typeof(Storage) !== "undefined",
+                  timestamp: new Date().toISOString(),
+                  email_filled: !!email,
+                  password_filled: !!password
+                };
+                
+                console.warn('🔍 Info do ambiente:', envInfo);
+                
+                // Teste básico de fetch
+                let fetchWorks = false;
+                let fetchError = '';
+                try {
+                  const testResponse = await fetch('/api/auth/session');
+                  fetchWorks = testResponse.status < 500;
+                  console.warn('🔍 Teste fetch /api/auth/session:', testResponse.status);
+                } catch (err) {
+                  fetchError = String(err);
+                  console.error('🔍 Fetch falhou:', err);
+                }
+                
+                if (debugElement) {
+                  debugElement.innerHTML = `
+                    <div class="text-xs space-y-1 text-yellow-400">
+                      <div><strong>🔍 DIAGNÓSTICO BÁSICO:</strong></div>
+                      <div>Host: ${envInfo.host}</div>
+                      <div>Cookies: ${envInfo.cookiesEnabled ? '✅' : '❌'}</div>
+                      <div>LocalStorage: ${envInfo.localStorage ? '✅' : '❌'}</div>
+                      <div>Fetch API: ${fetchWorks ? '✅' : '❌'}</div>
+                      <div>Email preenchido: ${envInfo.email_filled ? '✅' : '❌'}</div>
+                      <div>Senha preenchida: ${envInfo.password_filled ? '✅' : '❌'}</div>
+                      ${fetchError ? `<div class="text-red-400">Erro Fetch: ${fetchError.substring(0, 50)}...</div>` : ''}
+                      <div class="text-green-400">✅ JavaScript funcionando!</div>
+                    </div>
+                  `;
+                  debugElement.className = 'text-xs p-2 bg-gray-900 text-yellow-400 rounded';
+                }
+                
+                setDebugInfo(`Diagnóstico básico completo - Fetch: ${fetchWorks ? 'OK' : 'FALHOU'}`);
+                
+              } catch (error) {
+                console.error('🔍 Erro no diagnóstico:', error);
+                if (debugElement) {
+                  debugElement.innerHTML = `
+                    <div class="text-xs space-y-1 text-red-400">
+                      <div><strong>❌ ERRO NO DIAGNÓSTICO:</strong></div>
+                      <div>${String(error)}</div>
+                      <div>Host: ${window.location.host}</div>
+                      <div>Timestamp: ${new Date().toISOString()}</div>
+                    </div>
+                  `;
+                  debugElement.className = 'text-xs p-2 bg-gray-900 text-red-400 rounded';
+                }
+                setError(`Erro no diagnóstico: ${error}`);
+              }
+            }}
+            disabled={isLoading}
+            className="text-xs text-center w-full text-yellow-400 hover:text-yellow-300 bg-yellow-900/20 p-2 rounded border border-yellow-900/50 disabled:opacity-50"
+          >
+            🔍 Diagnóstico Básico
           </button>
           
           <button
