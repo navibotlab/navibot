@@ -5,6 +5,7 @@ import { LoadingProgress } from '@/components/LoadingProgress';
 import { NextAuthProvider } from '@/providers/NextAuthProvider';
 import { LogInterceptorLoader } from '@/components/LogInterceptorLoader';
 import Script from 'next/script';
+import SecurityURLCleaner from '@/components/SecurityURLCleaner';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -91,6 +92,7 @@ export default function RootLayout({
         <NextAuthProvider>
           <LoadingProgress />
           <LogInterceptorLoader />
+          <SecurityURLCleaner />
           {children}
         </NextAuthProvider>
         

@@ -23,6 +23,32 @@ export default function Login() {
     const isDevelopment = host.includes('localhost') || host.includes('127.0.0.1');
     setEnvironment(isProduction ? 'Produção' : (isDevelopment ? 'Desenvolvimento' : 'Desconhecido'));
     
+    // SEGURANÇA: Limpar credenciais da URL imediatamente
+    if (window.location.search) {
+      const urlParams = new URLSearchParams(window.location.search);
+      let hasCredentials = false;
+      
+      // Verificar se há credenciais na URL
+      if (urlParams.has('email') || urlParams.has('password')) {
+        hasCredentials = true;
+        
+        // Preencher campos se as credenciais estão na URL (mas limpar a URL)
+        const emailFromUrl = urlParams.get('email');
+        const passwordFromUrl = urlParams.get('password');
+        
+        if (emailFromUrl) setEmail(decodeURIComponent(emailFromUrl));
+        if (passwordFromUrl) setPassword(decodeURIComponent(passwordFromUrl));
+      }
+      
+      // Limpar a URL de qualquer parâmetro
+      const cleanUrl = window.location.origin + window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+      
+      if (hasCredentials) {
+        setError('Por segurança, credenciais foram removidas da URL. Verifique se os dados estão corretos abaixo.');
+      }
+    }
+    
     // Se já estiver autenticado, redirecionar para o dashboard
     if (status === 'authenticated') {
       console.log('Usuário já autenticado, redirecionando para dashboard');

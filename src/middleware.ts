@@ -108,39 +108,27 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(adminUrl);
     }
 
-    // PROTEÇÃO CONTRA CREDENCIAIS NA URL - Verificação em todas as rotas antes de qualquer outro processamento
+    // PROTEÇÃO CONTRA CREDENCIAIS NA URL - Versão simplificada
     const url = request.nextUrl;
     
-    // Verificação mais rigorosa de credenciais na URL
-    // Não redirecionar para diagnostico-standalone se já estiver autenticado
-    // E não redirecionar se for a página de verificar-email com o parâmetro email
+    // APENAS redirecionar para diagnóstico se NÃO for a página de login
+    // Deixar a página de login lidar com limpeza de credenciais
     if ((url.searchParams.has('email') || url.searchParams.has('password')) && 
-        !token && 
-        pathname !== '/verificar-email') {
+        pathname !== '/login' && 
+        pathname !== '/verificar-email' &&
+        !token) {
       console.log(`⚠️ ALERTA DE SEGURANÇA: Credenciais detectadas na URL: ${pathname}${url.search}`);
       
-      // Redirecionar para a página de diagnóstico standalone que é independente de APIs
+      // Redirecionar para a página de diagnóstico standalone
       const diagnosticoUrl = new URL('/diagnostico-standalone', request.url);
       return NextResponse.redirect(diagnosticoUrl);
     }
     
-    // Se usuário autenticado está tentando acessar login com credenciais na URL,
-    // redirecionar direto para dashboard admin em vez de diagnostico-standalone
-    if (token && pathname === '/login' && url.search.length > 0) {
-      console.log(`✅ Usuário autenticado tentando acessar login com parâmetros, redirecionando para dashboard`);
+    // Se usuário autenticado está tentando acessar login, redirecionar para dashboard
+    if (token && pathname === '/login') {
+      console.log(`✅ Usuário autenticado tentando acessar login, redirecionando para dashboard`);
       const adminUrl = new URL('/admin/dashboard', request.url);
       return NextResponse.redirect(adminUrl);
-    }
-    
-    // Verificação específica para login com qualquer parâmetro de query
-    // Apenas redirecionar se houver parâmetros suspeitos
-    if (pathname === '/login' && url.search.length > 0 && 
-        (url.search.includes('email=') || url.search.includes('password=') || url.search.includes('callbackUrl='))) {
-      console.log(`⚠️ Parâmetros de URL detectados na página de login: ${url.search}`);
-      
-      // Redirecionar para a página de login limpa
-      const loginUrl = new URL('/login', request.url);
-      return NextResponse.redirect(loginUrl);
     }
     
     // ANTI-LOOP: Se detectar muitos redirecionamentos consecutivos, permitir a página
